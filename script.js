@@ -10,7 +10,7 @@ class QuizGame {
             EDGE_REPORT_URL: 'https://qffcnljopolajeufkrah.functions.supabase.co/report',
             EDGE_LOG_URL: 'https://qffcnljopolajeufkrah.functions.supabase.co/clientLog',
             APP_KEY: 'AbuQusay', // حماية خفيفة مع الواجهة الخلفية
-            QUESTIONS_URL: 'https://abuqusayms.github.io/MS_AbuQusay/',
+            QUESTIONS_URL: 'https://abuqusayms.github.io/MS_AbuQusay/questions.json',
 
             QUESTION_TIME: 80,
             MAX_WRONG_ANSWERS: 3,
