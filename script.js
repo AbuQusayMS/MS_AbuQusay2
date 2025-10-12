@@ -866,90 +866,99 @@ async init() {
     }
  
     async displayLeaderboard() {
-        this.showScreen('leaderboard');
-        this.dom.leaderboardContent.innerHTML = '<div class="spinner"></div>';
+      this.showScreen('leaderboard');
+      this.dom.leaderboardContent.innerHTML = '<div class="spinner"></div>';
 
-        // اجعل "الكل" الافتراضي فقط إذا ما فيه قيمة حالية
-        if (this.dom.lbMode && !this.dom.lbMode.value) {
+      // اجعل "الكل" الافتراضي فقط إذا لا يوجد اختيار مسبق
+      if (this.dom.lbMode && !this.dom.lbMode.value) {
         this.dom.lbMode.value = 'all';
-        }
-        const mode = this.dom.lbMode?.value || 'all';
+      }
+      const mode = this.dom.lbMode?.value || 'all';
 
-        try {
+      // فعّل/عطّل قائمة المحاولات حسب الوضع الحالي
+      if (this.dom.lbAttempt) this.dom.lbAttempt.disabled = (mode !== 'attempt');
+
+      try {
+        let rows = [];
+
+        if (mode === 'attempt') {
+          // حدّث قائمة المحاولات فقط هنا
           await this.updateAttemptsFilter();
           const attemptN = Number(this.dom.lbAttempt?.value || 1);
-            
-          let rows = [];
-            
-            if (mode === 'attempt') {
-                const { data, error } = await this.supabase
-                    .from('log')
-                    .select('*')
-                    .eq('attempt_number', attemptN)
-                    .order('score', { ascending: false })
-                    .order('accuracy', { ascending: false })
-                    .order('total_time', { ascending: true })
-                    .limit(100);
 
-                if (error) throw error;
-                rows = data || [];
-            } else {
-                let query;
-                
-                // اجعل "الكل" الافتراضي دائمًا
-                if (this.dom.lbMode) this.dom.lbMode.value = 'all';
-                if (this.dom.lbAttempt) this.dom.lbAttempt.disabled = true;
-                const mode = 'all';
+          const { data, error } = await this.supabase
+            .from('log')
+            .select('*')
+            .eq('attempt_number', attemptN)
+            .order('score', { ascending: false })
+            .order('accuracy', { ascending: false })
+            .order('total_time', { ascending: true })
+            .limit(100);
+          if (error) throw error;
+          rows = data || [];
 
-                // عرض النتائج لجميع المحاولات بترتيب شامل
-                if (mode === 'all') {
-                  query = this.supabase
-                    .from('log')
-                    .select('*')
-                    .order('score', { ascending: false })
-                    .order('accuracy', { ascending: false })
-                    .order('total_time', { ascending: true });
-                } else {
-                    query = this.supabase.from('leaderboard').select('*');
-                    
-                    if (mode === 'accuracy') {
-                        query = query.order('accuracy', { ascending: false })
-                                     .order('score', { ascending: false })
-                                     .order('total_time', { ascending: true });
-                    } else if (mode === 'time') {
-                        query = query.order('total_time', { ascending: true })
-                                     .order('accuracy', { ascending: false })
-                                     .order('score', { ascending: false });
-                    } else { // best
-                        query = query.order('is_impossible_finisher', { ascending: false })
-                                     .order('score', { ascending: false })
-                                     .order('accuracy', { ascending: false })
-                                     .order('total_time', { ascending: true });
-                    }
-                }
-                
-                const { data, error } = await query.limit(100);
-                if (error) throw error;
-                rows = data || [];
+          // لا حاجة لاشتراك حي هنا
+          if (this.leaderboardSubscription) {
+            this.leaderboardSubscription.unsubscribe();
+            this.leaderboardSubscription = null;
+          }
 
-                // منع التكرار في وضع best
-                if (mode === 'best') {
-                    const seen = new Map();
-                    for (const r of rows) if (!seen.has(r.device_id)) seen.set(r.device_id, r);
-                    rows = [...seen.values()];
-                }
+        } else {
+          // أوضاع: all / best / accuracy / time
+          let query;
+
+          if (mode === 'all') {
+            query = this.supabase
+              .from('log')
+              .select('*')
+              .order('score', { ascending: false })
+              .order('accuracy', { ascending: false })
+              .order('total_time', { ascending: true });
+          } else {
+            query = this.supabase.from('leaderboard').select('*');
+
+            if (mode === 'accuracy') {
+              query = query.order('accuracy', { ascending: false })
+                           .order('score', { ascending: false })
+                           .order('total_time', { ascending: true });
+            } else if (mode === 'time') {
+              query = query.order('total_time', { ascending: true })
+                           .order('accuracy', { ascending: false })
+                           .order('score', { ascending: false });
+            } else { // best
+              query = query
+                .order('is_impossible_finisher', { ascending: false })
+                .order('score', { ascending: false })
+                .order('accuracy', { ascending: false })
+                .order('total_time', { ascending: true });
             }
+          }
 
-            this.renderLeaderboard(rows.slice(0, 50));
-            
-            if (mode !== 'attempt' && mode !== 'all') {
-                this.subscribeToLeaderboardChanges();
-            }
+          const { data, error } = await query.limit(100);
+          if (error) throw error;
+          rows = data || [];
 
-        } catch (error) {
-            console.error("Error loading leaderboard:", error);
-            this.dom.leaderboardContent.innerHTML = '<p>حدث خطأ في تحميل لوحة الصدارة.</p>';
+          if (mode === 'best') {
+            const seen = new Map();
+            for (const r of rows) if (!seen.has(r.device_id)) seen.set(r.device_id, r);
+            rows = [...seen.values()];
+          }
+
+          // الاشتراك الحي للأوضاع المستندة إلى الـ VIEW فقط
+          if (mode !== 'all') {
+            this.subscribeToLeaderboardChanges();
+          } else if (this.leaderboardSubscription) {
+            this.leaderboardSubscription.unsubscribe();
+            this.leaderboardSubscription = null;
+          }
         }
+
+        this.renderLeaderboard(rows.slice(0, 50));
+
+      } catch (error) {
+        console.error("Error loading leaderboard:", error);
+        this.dom.leaderboardContent.innerHTML = '<p>حدث خطأ في تحميل لوحة الصدارة.</p>';
+      }
     }
 
     async updateAttemptsFilter() {
