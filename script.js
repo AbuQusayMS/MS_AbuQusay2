@@ -637,46 +637,90 @@ async init() {
     }
 
     async endGame(completedAllLevels = false) {
-        this.clearAllTimers();
-        this.hideModal('confirmExit');
+      this.clearAllTimers();
+      this.hideModal('confirmExit');
 
-        const baseStats = this.calculateFinalStats(completedAllLevels);
+      const baseStats = this.calculateFinalStats(completedAllLevels);
 
-        try {
-            const perf = await this.ratePerformance(baseStats);
-            baseStats.performance_rating = perf.label;
-            baseStats.performance_score = perf.score;
-        } catch (_) {
-            const acc = Number(baseStats.accuracy || 0);
-            baseStats.performance_rating = (acc >= 90) ? "ممتاز 🏆" :
-                                          (acc >= 75) ? "جيد جدًا ⭐" :
-                                          (acc >= 60) ? "جيد 👍" :
-                                          (acc >= 40) ? "مقبول 👌" : "يحتاج إلى تحسين 📈";
-        }
+      try {
+        const perf = await this.ratePerformance(baseStats);
+        baseStats.performance_rating = perf.label;
+        baseStats.performance_score  = perf.score;
+      } catch (_) {
+        const acc = Number(baseStats.accuracy || 0);
+        baseStats.performance_rating =
+          (acc >= 90) ? "ممتاز 🏆" :
+          (acc >= 75) ? "جيد جدًا ⭐" :
+          (acc >= 60) ? "جيد 👍" :
+          (acc >= 40) ? "مقبول 👌" : "يحتاج إلى تحسين 📈";
+      }
 
-        const saveResult = await this.saveResultsToSupabase(baseStats);
-        
-        if (saveResult.error) {
-            this.showToast("فشل إرسال النتائج إلى السيرفر", "error");
-        } else {
-            baseStats.attempt_number = saveResult.attemptNumber;
-            this.gameState.attemptNumber = saveResult.attemptNumber;
-        }
+      const saveResult = await this.saveResultsToSupabase(baseStats);
 
-        this.displayFinalStats(baseStats);
-        
-        if (completedAllLevels) {
-            this.playSound('win');
-        } else {
-            this.playSound('loss');
-        }
+      if (saveResult.error) {
+        this.showToast("فشل إرسال النتائج إلى السيرفر", "error");
+      } else {
+        // رقم المحاولة القادم من الـ Edge
+        baseStats.attempt_number = saveResult.attemptNumber;
+        this.gameState.attemptNumber = saveResult.attemptNumber;
 
-        this.showScreen('end');
-        
-        setTimeout(() => {
-          this.cleanupSession({ keepEndScreen: true });
-          console.log("✅ Cleanup executed after 1s (end screen kept).");
-        }, 1000);
+       // ——— NEW: أرسل سجل المحاولة إلى clientLog بدون انتظار ———
+       try {
+         const payload = {
+           event: "attempt-log",
+           session_id: this.gameState.sessionId,
+           device_id: this.gameState.deviceId,
+           time: new Date().toISOString(),
+           payload: {
+             attempt_number: this.gameState.attemptNumber,
+             device_id: this.gameState.deviceId,
+             player_id: this.gameState.playerId,
+             name: this.gameState.name,
+             correct_answers: baseStats.correct_answers,
+             wrong_answers: baseStats.wrong_answers,
+             accuracy: baseStats.accuracy,
+             skips: baseStats.skips,
+             used_fifty_fifty: baseStats.used_fifty_fifty,
+             used_freeze_time: baseStats.used_freeze_time,
+             score: baseStats.score,
+             total_time: baseStats.total_time,
+             avg_time: baseStats.avg_time,
+             level: baseStats.level,
+             performance_rating: baseStats.performance_rating,
+             performance_score: baseStats.performance_score ?? null,
+           },
+         };
+
+         // عند استخدام sendBeacon لا يمكن إرسال هيدرز، لذا نمرّر المفتاح كسطر استعلام k=
+         const urlWithKey = `${this.config.EDGE_LOG_URL}?k=${encodeURIComponent(this.config.APP_KEY)}`;
+         const headers = { "Content-Type": "application/json", "X-App-Key": this.config.APP_KEY };
+         const body = JSON.stringify(payload);
+
+         // جرّب sendBeacon أولاً (لا يعرقل التنقل بين الصفحات)
+        if (navigator.sendBeacon) {
+           const blob = new Blob([body], { type: "application/json" });
+           navigator.sendBeacon(urlWithKey, blob);
+         } else {
+           // Fall-back: fetch بدون await (fire-and-forget)
+           fetch(this.config.EDGE_LOG_URL, { method: "POST", headers, body }).catch(()=>{});
+         }
+       } catch (e) {
+         console.warn("⚠️ فشل إرسال attempt-log إلى clientLog:", e);
+       }
+       // ——— END NEW ———
+      }
+
+      this.displayFinalStats(baseStats);
+
+      if (completedAllLevels) this.playSound('win');
+      else this.playSound('loss');
+
+      this.showScreen('end');
+
+      setTimeout(() => {
+        this.cleanupSession({ keepEndScreen: true });
+        console.log("✅ Cleanup executed after 1s (end screen kept).");
+      }, 1000);
     }
 
     async playAgain() {
