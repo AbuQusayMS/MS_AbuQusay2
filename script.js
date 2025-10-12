@@ -45,6 +45,7 @@ class QuizGame {
         this.cleanupQueue = [];
         this.answerSubmitted = false;
         this.pendingRequests = new Set();
+        this.lbFirstOpenDone = false; // لضبط الفلتر "الكل" عند أول فتح فقط
 
         this.setupErrorHandling();
         this.setupBackButtonHandler();
@@ -870,8 +871,9 @@ async init() {
       this.dom.leaderboardContent.innerHTML = '<div class="spinner"></div>';
 
       // اجعل "الكل" الافتراضي فقط إذا لا يوجد اختيار مسبق
-      if (this.dom.lbMode && !this.dom.lbMode.value) {
-        this.dom.lbMode.value = 'all';
+      if (!this.lbFirstOpenDone) {
+        if (this.dom.lbMode) this.dom.lbMode.value = 'all';
+        this.lbFirstOpenDone = true;
       }
       const mode = this.dom.lbMode?.value || 'all';
 
