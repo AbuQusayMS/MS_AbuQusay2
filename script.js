@@ -12,7 +12,7 @@ class QuizGame {
             APP_KEY: 'AbuQusay', // حماية خفيفة مع الواجهة الخلفية
             QUESTIONS_URL: 'https://abuqusayms.github.io/Shadow-Game/questions.json',
 
-            QUESTION_TIME: 30,
+            QUESTION_TIME: 80,
             MAX_WRONG_ANSWERS: 3,
             STARTING_SCORE: 100,
 
