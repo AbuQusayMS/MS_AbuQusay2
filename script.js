@@ -864,14 +864,14 @@ async init() {
             console.error('Error retrying failed submissions:', e);
         }
     }
-
+ 
     async displayLeaderboard() {
         this.showScreen('leaderboard');
         this.dom.leaderboardContent.innerHTML = '<div class="spinner"></div>';
 
         // اجعل "الكل" الافتراضي فقط إذا ما فيه قيمة حالية
         if (this.dom.lbMode && !this.dom.lbMode.value) {
-          this.dom.lbMode.value = 'all';
+        this.dom.lbMode.value = 'all';
         }
         const mode = this.dom.lbMode?.value || 'all';
 
@@ -953,34 +953,41 @@ async init() {
     }
 
     async updateAttemptsFilter() {
-        try {
-            const { data, error } = await this.supabase
-                .from('log')
-                .select('attempt_number')
-                .order('attempt_number', { ascending: false })
-                .limit(1);
+      try {
+        const { data, error } = await this.supabase
+          .from('log')
+          .select('attempt_number')
+          .order('attempt_number', { ascending: false })
+          .limit(1);
 
-            if (error) throw error;
+         if (error) throw error;
 
-            const maxAttempt = data && data.length > 0 ? data[0].attempt_number : 1;
-            
-            if (this.dom.lbAttempt) {
-                this.dom.lbAttempt.innerHTML = '';
-                
-                for (let i = 1; i <= maxAttempt; i++) {
-                    const option = document.createElement('option');
-                    option.value = i;
-                    option.textContent = `المحاولة ${i}`;
-                    this.dom.lbAttempt.appendChild(option);
-                }
-                
-                if (Number(this.dom.lbAttempt.value) > Number(maxAttempt)) {
-                    this.dom.lbAttempt.value = '1';
-                }
-            }
-        } catch (error) {
-            console.error("Error updating attempts filter:", error);
+         const maxAttempt = data && data.length > 0 ? data[0].attempt_number : 1;
+  
+        if (this.dom.lbAttempt) {
+          // احفظ الاختيار الحالي قبل إعادة البناء
+          const prev = this.dom.lbAttempt.value || '';
+
+          this.dom.lbAttempt.innerHTML = '';
+
+          for (let i = 1; i <= maxAttempt; i++) {
+            const option = document.createElement('option');
+            option.value = String(i);
+            option.textContent = `المحاولة ${i}`;
+            this.dom.lbAttempt.appendChild(option);
+          }
+
+          // استرجع اختيار المستخدم إن كان صالحًا، وإلا اجعلها آخر محاولة متاحة
+          if (prev && Number(prev) >= 1 && Number(prev) <= maxAttempt) {
+            this.dom.lbAttempt.value = String(prev);
+          } else {
+            // اختر بشكل منطقي آخر محاولة (أحدث واحدة)
+            this.dom.lbAttempt.value = String(maxAttempt);
+          }
         }
+      } catch (error) {
+        console.error("Error updating attempts filter:", error);
+      }
     }
 
     renderLeaderboard(players) {
