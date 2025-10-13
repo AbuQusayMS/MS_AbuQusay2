@@ -46,74 +46,10 @@ class QuizGame {
         this.answerSubmitted = false;
         this.pendingRequests = new Set();
         this.lbFirstOpenDone = false; // لضبط الفلتر "الكل" عند أول فتح فقط
-        this.clickGuards = new WeakMap(); // منع النقر المزدوج
-        this.clickBlockMs = 500;          // مدة قفل النقر المزدوج (نصف ثانية)
-
-        this.cooldownSeconds = 0;        // مدة التهدئة بعد النهاية
-        this.cooldownTimerId = null;
-        this.COOLDOWN_KEY_PREFIX = 'quiz_cooldown_';
 
         this.setupErrorHandling();
         this.setupBackButtonHandler();
         this.init();
-    }
-
-    guardClick(el, handler) {
-      const now = Date.now();
-      const last = this.clickGuards.get(el) || 0;
-      if (now - last < this.clickBlockMs) return; // تجاهل نقر مزدوج سريع
-      this.clickGuards.set(el, now);
-
-      const prevDisabled = el.disabled;
-      el.disabled = true;
-      el.dataset.busy = '1';
-      try {
-        const r = handler();
-        if (r && typeof r.then === 'function') {
-          r.finally(() => { el.disabled = prevDisabled; delete el.dataset.busy; });
-        } else {
-          el.disabled = prevDisabled; delete el.dataset.busy;
-        }
-      } catch (_) {
-        el.disabled = prevDisabled; delete el.dataset.busy;
-      }
-    }
-
-    getCooldownKey() {
-      const dev = this.getOrSetDeviceId();
-      return `${this.COOLDOWN_KEY_PREFIX}${dev}`;
-    }
-    setCooldownNow() {
-      localStorage.setItem(this.getCooldownKey(), String(Date.now()));
-    }
-    getCooldownRemaining() {
-      const startedAt = Number(localStorage.getItem(this.getCooldownKey()) || 0);
-      if (!startedAt) return 0;
-      const elapsed = Math.floor((Date.now() - startedAt)/1000);
-      const remain = this.cooldownSeconds - elapsed;
-      return Math.max(0, remain);
-    }
-    isCooldownActive() { 
-      return this.getCooldownRemaining() > 0; 
-    }
-    startCooldownUI() {
-      const startBtn = document.querySelector('#startScreen [data-action="showAvatarScreen"]');
-      if (!startBtn) return;
-      clearInterval(this.cooldownTimerId);
-
-      const tick = () => {
-        const r = this.getCooldownRemaining();
-        if (r > 0) {
-          startBtn.disabled = true;
-          startBtn.textContent = `انتظر ${r} ثانية...`;
-        } else {
-          startBtn.disabled = false;
-          startBtn.textContent = 'ابدأ اللعب';
-          clearInterval(this.cooldownTimerId);
-        }
-      };
-      tick();
-      this.cooldownTimerId = setInterval(tick, 250);
     }
 
     setupErrorHandling() {
@@ -210,6 +146,9 @@ async init() {
     return;
   }
 
+  // 👇 2) ثم جرّب إعادة الإرسال الفاشل بعد نجاح الإنشاء
+  await this.retryFailedSubmissions();
+
   // 👇 3) حمّل الأسئلة
   const questionsLoaded = await this.loadQuestions();
   if (questionsLoaded) {
@@ -296,8 +235,8 @@ async init() {
             };
             
             if (actionHandlers[action]) {
-              this.playSound('click');
-              this.guardClick(target, () => actionHandlers[action]());
+                this.playSound('click');
+                actionHandlers[action]();
             }
         });
 
@@ -430,31 +369,6 @@ async init() {
         console.log(`[Cleanup] Completed for session ${this.currentSessionId}`);
      }
 
-    hardResetToStart() {
-      // مسح تخزين الجلسة/المفاتيح المؤقتة
-      this.clearSessionStorage();
-
-      // تفريغ مدخلات ومشاهد
-      try {
-        if (this.dom?.nameInput) {
-          this.dom.nameInput.value = '';
-          if (this.dom.nameError) this.dom.nameError.textContent = '';
-        }
-        if (this.dom?.problemScreenshot) this.dom.problemScreenshot.value = '';
-        const prev = this.dom?.reportImagePreview;
-        if (prev) { prev.style.display='none'; const img = prev.querySelector('img'); if (img) img.src=''; }
-      } catch(_) {}
-
-      if (this.dom?.leaderboardContent) this.dom.leaderboardContent.innerHTML = '';
-      if (this.dom?.optionsGrid) this.dom.optionsGrid.innerHTML = '';
-      if (this.dom?.questionText) this.dom.questionText.textContent = '';
-
-      // إعادة الحالة والـ UI
-      this.resetGameState();
-      this.resetUI(false);
-      this.showScreen('start');
-    }
-
     clearAllTimers() {
         if (this.timer.interval) {
             clearInterval(this.timer.interval);
@@ -546,16 +460,9 @@ async init() {
     }
 
     async postInstructionsStart() {
-      if (this.isCooldownActive()) {
-        const r = this.getCooldownRemaining();
-        this.showToast(`الرجاء الانتظار ${r} ثانية قبل المحاولة مجددًا.`, "info");
-        this.showScreen('start');
-        this.startCooldownUI();
-        return;
-      }
-      await this.cleanupSession();
-      this.setupInitialGameState();
-      this.startGameFlow(0);
+        await this.cleanupSession();
+        this.setupInitialGameState();
+        this.startGameFlow(0);
     }
 
     setupInitialGameState() {
@@ -735,7 +642,6 @@ async init() {
 
       const baseStats = this.calculateFinalStats(completedAllLevels);
 
-      // تقدير الأداء
       try {
         const perf = await this.ratePerformance(baseStats);
         baseStats.performance_rating = perf.label;
@@ -749,84 +655,78 @@ async init() {
           (acc >= 40) ? "مقبول 👌" : "يحتاج إلى تحسين 📈";
       }
 
-      // فعّل مؤقّت التهدئة لهذا الجهاز
-      this.setCooldownNow();
+      const saveResult = await this.saveResultsToSupabase(baseStats);
 
-      // اعرض النتيجة فورًا
-      this.displayFinalStats(baseStats);
-      this.playSound(completedAllLevels ? 'win' : 'loss');
-      this.showScreen('end');
+      if (saveResult.error) {
+        this.showToast("فشل إرسال النتائج إلى السيرفر", "error");
+      } else {
+        // رقم المحاولة القادم من الـ Edge
+        baseStats.attempt_number = saveResult.attemptNumber;
+        this.gameState.attemptNumber = saveResult.attemptNumber;
 
-      // أرسل النتيجة في الخلفية (دون إيقاف الواجهة)
-      this.saveResultsToSupabase(baseStats).then(saveResult => {
-        if (!saveResult?.error && saveResult?.attemptNumber != null) {
-          this.gameState.attemptNumber = saveResult.attemptNumber;
-          const el = this.getEl('#finalAttemptNumber');
-          if (el) el.textContent = saveResult.attemptNumber;
-        }
-     }).catch(()=>{});
+       // ——— NEW: أرسل سجل المحاولة إلى clientLog بدون انتظار ———
+       try {
+         const payload = {
+           event: "attempt-log",
+           session_id: this.gameState.sessionId,
+           device_id: this.gameState.deviceId,
+           time: new Date().toISOString(),
+           payload: {
+             attempt_number: this.gameState.attemptNumber,
+             device_id: this.gameState.deviceId,
+             player_id: this.gameState.playerId,
+             name: this.gameState.name,
+             correct_answers: baseStats.correct_answers,
+             wrong_answers: baseStats.wrong_answers,
+             accuracy: baseStats.accuracy,
+             skips: baseStats.skips,
+             used_fifty_fifty: baseStats.used_fifty_fifty,
+             used_freeze_time: baseStats.used_freeze_time,
+             score: baseStats.score,
+             total_time: baseStats.total_time,
+             avg_time: baseStats.avg_time,
+             level: baseStats.level,
+             performance_rating: baseStats.performance_rating,
+             performance_score: baseStats.performance_score ?? null,
+           },
+         };
 
-      // clientLog بخلفية سريعة (sendBeacon إن أمكن)
-      try {
-        const payload = {
-          event: "attempt-log",
-          session_id: this.gameState.sessionId,
-          device_id: this.gameState.deviceId,
-          time: new Date().toISOString(),
-          payload: {
-            attempt_number: this.gameState.attemptNumber,
-            device_id: this.gameState.deviceId,
-            player_id: this.gameState.playerId,
-            name: this.gameState.name,
-            correct_answers: baseStats.correct_answers,
-            wrong_answers: baseStats.wrong_answers,
-            accuracy: baseStats.accuracy,
-            skips: baseStats.skips,
-            used_fifty_fifty: baseStats.used_fifty_fifty,
-            used_freeze_time: baseStats.used_freeze_time,
-            score: baseStats.score,
-            total_time: baseStats.total_time,
-            avg_time: baseStats.avg_time,
-            level: baseStats.level,
-            performance_rating: baseStats.performance_rating,
-            performance_score: baseStats.performance_score ?? null,
-         },
-        };
-        const urlWithKey = `${this.config.EDGE_LOG_URL}?k=${encodeURIComponent(this.config.APP_KEY)}`;
-        const headers = { "Content-Type": "application/json", "X-App-Key": this.config.APP_KEY };
-        const body = JSON.stringify(payload);
+         // عند استخدام sendBeacon لا يمكن إرسال هيدرز، لذا نمرّر المفتاح كسطر استعلام k=
+         const urlWithKey = `${this.config.EDGE_LOG_URL}?k=${encodeURIComponent(this.config.APP_KEY)}`;
+         const headers = { "Content-Type": "application/json", "X-App-Key": this.config.APP_KEY };
+         const body = JSON.stringify(payload);
+
+         // جرّب sendBeacon أولاً (لا يعرقل التنقل بين الصفحات)
         if (navigator.sendBeacon) {
-          const blob = new Blob([body], { type: "application/json" });
-          navigator.sendBeacon(urlWithKey, blob);
-        } else {
-          fetch(this.config.EDGE_LOG_URL, { method: "POST", headers, body }).catch(()=>{});
-        }
-      } catch (e) {
-        console.warn("⚠️ فشل إرسال attempt-log:", e);
+           const blob = new Blob([body], { type: "application/json" });
+           navigator.sendBeacon(urlWithKey, blob);
+         } else {
+           // Fall-back: fetch بدون await (fire-and-forget)
+           fetch(this.config.EDGE_LOG_URL, { method: "POST", headers, body }).catch(()=>{});
+         }
+       } catch (e) {
+         console.warn("⚠️ فشل إرسال attempt-log إلى clientLog:", e);
+       }
+       // ——— END NEW ———
       }
 
-      // أخبر المستخدم بوجود تهدئة
-      this.showToast("يمكنك المحاولة مجددًا بعد 30 ثانية.", "info");
+      this.displayFinalStats(baseStats);
 
-       // اترك شاشة النهاية قليلًا ثم نظّف وارجع للبداية (الزر سيعرض عدّاد التهدئة)
+      if (completedAllLevels) this.playSound('win');
+      else this.playSound('loss');
+
+      this.showScreen('end');
+
       setTimeout(() => {
-        this.cleanupSession({ keepEndScreen: false });
-        this.hardResetToStart();
-      }, 5000);
+        this.cleanupSession({ keepEndScreen: true });
+        console.log("✅ Cleanup executed after 1s (end screen kept).");
+      }, 1000);
     }
 
     async playAgain() {
-      // احترام التهدئة قبل إعادة التشغيل
-      if (this.isCooldownActive()) {
-        const r = this.getCooldownRemaining();
-        this.showToast(`الرجاء الانتظار ${r} ثانية قبل المحاولة مجددًا.`, "info");
-        this.showScreen('start');
-        this.startCooldownUI();
-        return;
-      }
-      await this.cleanupSession();
-      this.currentSessionId = this.generateSessionId();
-      window.location.reload();
+        await this.cleanupSession();
+        this.currentSessionId = this.generateSessionId();
+        window.location.reload();
     }
 
     calculateFinalStats(completedAll) {
@@ -949,6 +849,11 @@ async init() {
           });
         } catch(_) {}
 
+        // احتياط: خزّنها في الطابور لإعادة الإرسال لاحقًا
+        if (typeof this.queueFailedSubmission === 'function') {
+          try { this.queueFailedSubmission(payload); } catch(_) {}
+        }
+
         this.showToast("فشل إرسال النتائج إلى السيرفر", "error");
 
         return { attemptNumber: null, error: String(error) };
@@ -959,9 +864,51 @@ async init() {
       }
     }
 
-    queueFailedSubmission(_) { /* disabled by design */ }
+    queueFailedSubmission(data) {
+        try {
+            const failedSubmissions = JSON.parse(localStorage.getItem('failedSubmissions') || '[]');
+            failedSubmissions.push({
+                data: data,
+                timestamp: new Date().toISOString(),
+                type: 'gameResult'
+            });
+            localStorage.setItem('failedSubmissions', JSON.stringify(failedSubmissions.slice(-10)));
+        } catch (e) {
+            console.error('Failed to queue submission:', e);
+        }
+    }
 
-    async retryFailedSubmissions() { /* disabled by design */ }
+    async retryFailedSubmissions() {
+        try {
+            const failedSubmissions = JSON.parse(localStorage.getItem('failedSubmissions') || '[]');
+            if (failedSubmissions.length === 0) return;
+
+            const successful = [];
+            
+            for (const submission of failedSubmissions) {
+                try {
+                    if (submission.type === 'gameResult') {
+                        const result = await this.saveResultsToSupabase(submission.data);
+                        if (!result.error) {
+                            successful.push(submission);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Retry failed for submission:', error);
+                }
+            }
+
+            // إزالة البيانات التي تم إرسالها بنجاح
+            if (successful.length > 0) {
+                const remaining = failedSubmissions.filter(sub => 
+                    !successful.includes(sub)
+                );
+                localStorage.setItem('failedSubmissions', JSON.stringify(remaining));
+            }
+        } catch (e) {
+            console.error('Error retrying failed submissions:', e);
+        }
+    }
  
     async displayLeaderboard() {
       this.showScreen('leaderboard');
@@ -1276,16 +1223,15 @@ async init() {
 
     showScreen(screenName) {
       Object.values(this.dom.screens).forEach(screen => screen.classList.remove('active'));
+
       const el = this.dom.screens[screenName];
       if (el) {
         el.classList.add('active');
-        const id = el.id;
+
+        // ادفع الحالة باستخدام id الحقيقي للعنصر
+        const id = el.id; // أمثلة: gameContainer, leaderboardScreen, endScreen
         if (['gameContainer', 'leaderboardScreen', 'endScreen'].includes(id)) {
           history.pushState({ screen: id }, '', `#${id}`);
-        }
-        // جديد: عند شاشة البداية، فعّل واجهة العداد إن كان المؤقّت يعمل
-        if (screenName === 'start' && this.isCooldownActive()) {
-          this.startCooldownUI();
         }
       }
     }
@@ -1456,20 +1402,17 @@ async init() {
                 meta: { ...(meta || {}), context: ctx }
             };
 
-            this.showToast("جارٍ إرسال البلاغ بالخلفية...", "info");
-            this.hideModal('advancedReport');
-
-            const headers = { 'Content-Type': 'application/json', 'X-App-Key': this.config.APP_KEY };
-            fetch(this.config.EDGE_REPORT_URL, {
+            const resp = await fetch(this.config.EDGE_REPORT_URL, {
               method: 'POST',
-              headers,
+              headers: {
+                'Content-Type': 'application/json',
+                'X-App-Key': this.config.APP_KEY
+              },
               body: JSON.stringify(payload)
-            })
-            .then(r => {
-              if (r.ok) this.showToast("تم إرسال البلاغ. شكرًا لك!", "success");
-              else this.showToast("تعذّر إرسال البلاغ.", "error");
-            })
-            .catch(() => this.showToast("تعذّر إرسال البلاغ.", "error"));
+            });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+            this.showToast("تم إرسال بلاغك بنجاح. شكراً لك!", "success");
 
         } catch (err) {
             console.error("Supabase report error:", err);
@@ -1802,8 +1745,7 @@ async init() {
     displayFinalStats(stats) {
         this.getEl('#finalName').textContent = stats.name;
         this.getEl('#finalId').textContent = stats.player_id;
-        this.getEl('#finalAttemptNumber').textContent =
-          (stats.attempt_number ?? this.gameState.attemptNumber ?? '—');
+        this.getEl('#finalAttemptNumber').textContent = stats.attempt_number;
         this.getEl('#finalCorrect').textContent = stats.correct_answers;
         this.getEl('#finalWrong').textContent = stats.wrong_answers;
         this.getEl('#finalSkips').textContent = stats.skips;
