@@ -58,7 +58,6 @@ class QuizGame {
         this.init();
     }
 
-    // منع الضغط المزدوج
     guardClick(el, handler) {
       const now = Date.now();
       const last = this.clickGuards.get(el) || 0;
@@ -80,7 +79,6 @@ class QuizGame {
       }
     }
 
-    // مؤقت التهدئة (30 ثانية) مبني على Device ID
     getCooldownKey() {
       const dev = this.getOrSetDeviceId();
       return `${this.COOLDOWN_KEY_PREFIX}${dev}`;
@@ -193,34 +191,34 @@ class QuizGame {
         }
     }
 
-    async init() {
-      this.cacheDomElements();
-      this.bindEventListeners();
-      this.populateAvatarGrid();
-      await this.preloadAudio();
+async init() {
+  this.cacheDomElements();
+  this.bindEventListeners();
+  this.populateAvatarGrid();
+  await this.preloadAudio();
 
-      // 1) أنشئ Supabase أولاً
-      try {
-        if (!window.supabase?.createClient) throw new Error('Supabase lib not loaded');
-        this.supabase = supabase.createClient(this.config.SUPABASE_URL, this.config.SUPABASE_KEY);
-        if (!this.supabase) throw new Error("Supabase client failed to initialize.");
-      } catch (error) {
-        console.error("Error initializing Supabase:", error);
-        this.showToast("خطأ في الاتصال بقاعدة البيانات", "error");
-        const lt = this.getEl('#loaderText');
-        if (lt) lt.textContent = "خطأ في الاتصال بالخادم.";
-        return;
-      }
+  // 👇 1) أنشئ Supabase أولاً
+  try {
+    if (!window.supabase?.createClient) throw new Error('Supabase lib not loaded');
+    this.supabase = supabase.createClient(this.config.SUPABASE_URL, this.config.SUPABASE_KEY);
+    if (!this.supabase) throw new Error("Supabase client failed to initialize.");
+  } catch (error) {
+    console.error("Error initializing Supabase:", error);
+    this.showToast("خطأ في الاتصال بقاعدة البيانات", "error");
+    const lt = this.getEl('#loaderText');
+    if (lt) lt.textContent = "خطأ في الاتصال بالخادم.";
+    return;
+  }
 
-      // 3) حمّل الأسئلة
-      const questionsLoaded = await this.loadQuestions();
-      if (questionsLoaded) {
-        this.showScreen('start');
-      } else {
-        this.getEl('#loaderText').textContent = "حدث خطأ في تحميل الأسئلة. الرجاء تحديث الصفحة.";
-      }
-      this.dom.screens.loader.classList.remove('active');
-    }
+  // 👇 3) حمّل الأسئلة
+  const questionsLoaded = await this.loadQuestions();
+  if (questionsLoaded) {
+    this.showScreen('start');
+  } else {
+    this.getEl('#loaderText').textContent = "حدث خطأ في تحميل الأسئلة. الرجاء تحديث الصفحة.";
+  }
+  this.dom.screens.loader.classList.remove('active');
+}
 
     cacheDomElements() {
         const byId = (id) => document.getElementById(id);
@@ -731,7 +729,6 @@ class QuizGame {
         }
     }
 
-    // نسخة موحّدة ونظيفة من endGame
     async endGame(completedAllLevels = false) {
       this.clearAllTimers();
       this.hideModal('confirmExit');
@@ -817,6 +814,27 @@ class QuizGame {
         this.hardResetToStart(); // سيستدعي showScreen('start') والذي بدوره يُشغّل startCooldownUI إذا لزم
       }, 5000);
     }
+
+    if (this.isCooldownActive()) {
+      const r = this.getCooldownRemaining();
+      this.showToast(`الرجاء الانتظار ${r} ثانية قبل المحاولة مجددًا.`, "info");
+      this.showScreen('start');
+      this.startCooldownUI();
+      return;
+    }
+
+      this.displayFinalStats(baseStats);
+
+      if (completedAllLevels) this.playSound('win');
+      else this.playSound('loss');
+
+      this.showScreen('end');
+
+      // اترك المستخدم يرى النتيجة لحظات، ثم رجّع للبداية
+      setTimeout(() => {
+        this.cleanupSession({ keepEndScreen: false });
+        this.hardResetToStart();
+      }, 5000);
 
     async playAgain() {
         if (this.isCooldownActive()) {
@@ -1285,7 +1303,7 @@ class QuizGame {
         if (['gameContainer', 'leaderboardScreen', 'endScreen'].includes(id)) {
           history.pushState({ screen: id }, '', `#${id}`);
         }
-        // عند شاشة البداية، فعّل واجهة العداد إن كان المؤقّت يعمل
+        // جديد: عند شاشة البداية، فعّل واجهة العداد إن كان المؤقّت يعمل
         if (screenName === 'start' && this.isCooldownActive()) {
           this.startCooldownUI();
         }
