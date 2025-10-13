@@ -362,7 +362,7 @@ textarea { resize: vertical; min-height: 100px; }
 #playerAvatar { width: 3.5rem; height: 3.5rem; border-radius: var(--radius-full); border: 2px solid var(--gold-color); object-fit: cover; }
 .player-details { display: flex; flex-direction: column; align-items: flex-start; }
 #playerName { font-size: var(--font-size-lg); font-weight: 700; overflow-wrap: anywhere; }
-.player-id { font-size: .75rem; opacity: .7; }
+.player-id { direction:ltr; unicode-bidi: plaintext; }
 .player-stats { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); font-size: .875rem; }
 .player-stats strong { color: var(--gold-color); }
 
@@ -394,10 +394,10 @@ textarea { resize: vertical; min-height: 100px; }
 }
 .timer-bar {
   height: 100%; background: linear-gradient(90deg, var(--accent-color), var(--gold-color));
-  border-radius: var(--radius-full); transition: width 1s linear; width: 100%;
+  border-radius: var(--radius-full); transition: width 200ms linear; width: 100%;
 }
 .timer-bar.frozen { background: #3b82f6; }
-.timer-text {
+.timer-text { font-variant-numeric: tabular-nums;
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   color: var(--color-white); font-weight: 700; text-shadow: 1px 1px 2px var(--color-black);
 }
