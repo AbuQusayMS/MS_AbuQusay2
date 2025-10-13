@@ -46,6 +46,7 @@ class QuizGame {
         this.answerSubmitted = false;
         this.pendingRequests = new Set();
         this.lbFirstOpenDone = false; // لضبط الفلتر "الكل" عند أول فتح فقط
+        this.actionLocks = new Map();
 
         this.setupErrorHandling();
         this.setupBackButtonHandler();
@@ -235,9 +236,12 @@ async init() {
             };
             
             if (actionHandlers[action]) {
-                this.playSound('click');
-                actionHandlers[action]();
+              // قفل عام على مستوى "اسم الإجراء"
+              if (!this.tryLockForAction(action, target)) return;
+              this.playSound('click');
+              actionHandlers[action]();
             }
+
         });
 
         this.dom.nameInput.addEventListener('input', () => this.validateNameInput());
@@ -1825,6 +1829,39 @@ async init() {
             h |= 0;
         }
         return String(Math.abs(h));
+    }
+
+    tryLock(actionKey, lockMs = 1200) {
+      const until = this.actionLocks.get(actionKey) || 0;
+      const now = Date.now();
+      if (now < until) return false;   // ما زال مقفول
+      this.actionLocks.set(actionKey, now + lockMs);
+      setTimeout(() => {
+        if (this.actionLocks.get(actionKey) <= now + lockMs) this.actionLocks.delete(actionKey);
+      }, lockMs + 50);
+      return true;
+    }
+
+    tryLockForAction(action, targetEl) {
+      // قفل على اسم الإجراء
+      if (!this.tryLock(`act:${action}`, 1200)) return false;
+      // وسِم الزر كمشغول لحظيًا
+      if (targetEl) this.setBusy(targetEl, true, 1200);
+      return true;
+    }
+
+    setBusy(el, busy = true, autoMs = 1500) {
+      if (!el) return;
+      if (busy) {
+        el.setAttribute('aria-disabled', 'true');
+        el.classList.add('is-busy');
+        el.disabled = true;
+        if (autoMs > 0) setTimeout(() => this.setBusy(el, false, 0), autoMs);
+      } else {
+        el.removeAttribute('aria-disabled');
+        el.classList.remove('is-busy');
+        el.disabled = false;
+      }
     }
 
     async sendClientLog(event = 'log', payload = {}) {
