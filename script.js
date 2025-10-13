@@ -749,24 +749,24 @@ async init() {
           (acc >= 40) ? "مقبول 👌" : "يحتاج إلى تحسين 📈";
       }
 
-      // ابدأ مؤقّت التهدئة (30 ثانية) لهذا الجهاز
+      // فعّل مؤقّت التهدئة لهذا الجهاز
       this.setCooldownNow();
 
       // اعرض النتيجة فورًا
       this.displayFinalStats(baseStats);
-      if (completedAllLevels) this.playSound('win'); else this.playSound('loss');
+      this.playSound(completedAllLevels ? 'win' : 'loss');
       this.showScreen('end');
 
-      // أرسل النتيجة في الخلفية
+      // أرسل النتيجة في الخلفية (دون إيقاف الواجهة)
       this.saveResultsToSupabase(baseStats).then(saveResult => {
         if (!saveResult?.error && saveResult?.attemptNumber != null) {
           this.gameState.attemptNumber = saveResult.attemptNumber;
           const el = this.getEl('#finalAttemptNumber');
           if (el) el.textContent = saveResult.attemptNumber;
         }
-      }).catch(()=>{ /* تجاهل */});
+     }).catch(()=>{});
 
-      // سجلّ خفيف بالخلفية (sendBeacon إن أمكن)
+      // clientLog بخلفية سريعة (sendBeacon إن أمكن)
       try {
         const payload = {
           event: "attempt-log",
@@ -790,7 +790,7 @@ async init() {
             level: baseStats.level,
             performance_rating: baseStats.performance_rating,
             performance_score: baseStats.performance_score ?? null,
-          },
+         },
         };
         const urlWithKey = `${this.config.EDGE_LOG_URL}?k=${encodeURIComponent(this.config.APP_KEY)}`;
         const headers = { "Content-Type": "application/json", "X-App-Key": this.config.APP_KEY };
@@ -802,51 +802,31 @@ async init() {
           fetch(this.config.EDGE_LOG_URL, { method: "POST", headers, body }).catch(()=>{});
         }
       } catch (e) {
-        console.warn("⚠️ فشل إرسال attempt-log إلى clientLog:", e);
+        console.warn("⚠️ فشل إرسال attempt-log:", e);
       }
 
       // أخبر المستخدم بوجود تهدئة
       this.showToast("يمكنك المحاولة مجددًا بعد 30 ثانية.", "info");
-    
-      // اترك المستخدم يرى النتيجة قليلًا، ثم نظّف وارجع للبداية (زر البداية سيُظهر العدّاد)
-      setTimeout(() => {
-        this.cleanupSession({ keepEndScreen: false });
-        this.hardResetToStart(); // سيستدعي showScreen('start') والذي بدوره يُشغّل startCooldownUI إذا لزم
-      }, 5000);
-    }
 
-    if (this.isCooldownActive()) {
-      const r = this.getCooldownRemaining();
-      this.showToast(`الرجاء الانتظار ${r} ثانية قبل المحاولة مجددًا.`, "info");
-      this.showScreen('start');
-      this.startCooldownUI();
-      return;
-    }
-
-      this.displayFinalStats(baseStats);
-
-      if (completedAllLevels) this.playSound('win');
-      else this.playSound('loss');
-
-      this.showScreen('end');
-
-      // اترك المستخدم يرى النتيجة لحظات، ثم رجّع للبداية
+       // اترك شاشة النهاية قليلًا ثم نظّف وارجع للبداية (الزر سيعرض عدّاد التهدئة)
       setTimeout(() => {
         this.cleanupSession({ keepEndScreen: false });
         this.hardResetToStart();
       }, 5000);
+    }
 
     async playAgain() {
-        if (this.isCooldownActive()) {
-          const r = this.getCooldownRemaining();
-          this.showToast(`الرجاء الانتظار ${r} ثانية قبل المحاولة مجددًا.`, "info");
-          this.showScreen('start');
-          this.startCooldownUI();
-          return;
-        }
-        await this.cleanupSession();
-        this.currentSessionId = this.generateSessionId();
-        window.location.reload();
+      // احترام التهدئة قبل إعادة التشغيل
+      if (this.isCooldownActive()) {
+        const r = this.getCooldownRemaining();
+        this.showToast(`الرجاء الانتظار ${r} ثانية قبل المحاولة مجددًا.`, "info");
+        this.showScreen('start');
+        this.startCooldownUI();
+        return;
+      }
+      await this.cleanupSession();
+      this.currentSessionId = this.generateSessionId();
+      window.location.reload();
     }
 
     calculateFinalStats(completedAll) {
