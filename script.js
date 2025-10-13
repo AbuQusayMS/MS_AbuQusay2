@@ -49,7 +49,7 @@ class QuizGame {
         this.clickGuards = new WeakMap(); // منع النقر المزدوج
         this.clickBlockMs = 500;          // مدة قفل النقر المزدوج (نصف ثانية)
 
-        this.cooldownSeconds = 30;        // مدة التهدئة بعد النهاية
+        this.cooldownSeconds = 0;        // مدة التهدئة بعد النهاية
         this.cooldownTimerId = null;
         this.COOLDOWN_KEY_PREFIX = 'quiz_cooldown_';
 
