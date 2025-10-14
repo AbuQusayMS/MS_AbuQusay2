@@ -228,8 +228,15 @@
           <button class="share-btn instagram" data-action="shareOnInstagram">Instagram</button>
         </div>
       </section>
+
+      <!-- 👇 أضف هذا الجزء هنا -->
+      <p id="retryHint" style="display:none; text-align:center; margin-top:1rem;">
+        ⏳ يمكنك المحاولة مجددًا بعد <b id="retryCountdown">30</b> ثانية.
+      </p>
+      <!-- 👆 نهاية الجزء الجديد -->
+      
       <div class="button-group">
-        <button class="btn-main" data-action="playAgain">لعب مرة أخرى</button>
+        <button id="playAgainBtn" class="btn-main" data-action="playAgain">لعب مرة أخرى</button>
         <button class="btn-secondary" data-action="showLeaderboard">لوحة الصدارة</button>
       </div>
     </div>
