@@ -1,5 +1,6 @@
 const ICON_SUN = '\u2600\uFE0F';
 const ICON_MOON = '\uD83C\uDF19';
+const COOLDOWN_SECONDS = 30;
 
 class QuizGame {
     constructor() {
@@ -46,7 +47,6 @@ class QuizGame {
         this.answerSubmitted = false;
         this.pendingRequests = new Set();
         this.lbFirstOpenDone = false; // لضبط الفلتر "الكل" عند أول فتح فقط
-        this.actionLocks = new Map();
 
         this.setupErrorHandling();
         this.setupBackButtonHandler();
@@ -236,12 +236,9 @@ async init() {
             };
             
             if (actionHandlers[action]) {
-              // قفل عام على مستوى "اسم الإجراء"
-              if (!this.tryLockForAction(action, target)) return;
-              this.playSound('click');
-              actionHandlers[action]();
+                this.playSound('click');
+                actionHandlers[action]();
             }
-
         });
 
         this.dom.nameInput.addEventListener('input', () => this.validateNameInput());
@@ -454,6 +451,25 @@ async init() {
       if (target) target.classList.add('active');
     }
 
+    resetPageToInitial() {
+      // تفريغ نصوص/صور حساسة
+      this.dom.questionText && (this.dom.questionText.textContent = '');
+      this.dom.optionsGrid && (this.dom.optionsGrid.innerHTML = '');
+      this.getEl('#playerAvatar') && (this.getEl('#playerAvatar').src = '');
+      this.getEl('#playerName') && (this.getEl('#playerName').textContent = '');
+      this.getEl('#playerId') && (this.getEl('#playerId').textContent = '');
+
+      // تفريغ شاشات النتائج/المستوى (اختياري)
+      ['#levelScore','#levelErrors','#levelCorrect','#finalName','#finalId','#finalAttemptNumber','#finalCorrect','#finalWrong','#finalSkips','#finalScore','#totalTime','#finalLevel','#finalAccuracy','#finalAvgTime','#performanceText']
+        .forEach(sel => { const el = this.getEl(sel); if (el) el.textContent = ''; });
+
+      // لوحة الصدارة
+      if (this.dom.leaderboardContent) this.dom.leaderboardContent.innerHTML = '';
+
+      // إظهار شاشة البداية
+      this.showScreen('start');
+    }
+
     async processCleanupQueue() {
         const promises = this.cleanupQueue
             .filter(item => item.promise)
@@ -659,14 +675,31 @@ async init() {
           (acc >= 40) ? "مقبول 👌" : "يحتاج إلى تحسين 📈";
       }
 
-      const saveResult = await this.saveResultsToSupabase(baseStats);
+      // ❶ أعرض شاشة النتيجة فوراً
+      this.displayFinalStats({ ...baseStats, attempt_number: '—' });
+      this.showScreen('end');
+      if (completedAllLevels) this.playSound('win'); else this.playSound('loss');
 
-      if (saveResult.error) {
-        this.showToast("فشل إرسال النتائج إلى السيرفر", "error");
-      } else {
-        // رقم المحاولة القادم من الـ Edge
-        baseStats.attempt_number = saveResult.attemptNumber;
-        this.gameState.attemptNumber = saveResult.attemptNumber;
+      // ❷ أرسِل النتيجة في الخلفية (لا await) ثم حدّث رقم المحاولة عند وصول الرد
+      this.saveResultsToSupabase(baseStats)
+        .then(saveResult => {
+          if (saveResult?.attemptNumber) {
+            this.gameState.attemptNumber = saveResult.attemptNumber;
+            const el = this.getEl('#finalAttemptNumber');
+            if (el) el.textContent = saveResult.attemptNumber;
+         }
+          // ——— إرسال attempt-log كما هو لديك (sendBeacon / fetch بدون await) ———
+        })
+        .catch(() => {
+          this.showToast("فشل إرسال النتائج إلى السيرفر", "error");
+          // يبقى attempt_number '—' وسيُعاد الإرسال عبر retryFailedSubmissions
+        });
+
+      // ❸ نظّف فورياً (مع إبقاء شاشة النهاية)
+      setTimeout(() => {
+        this.cleanupSession({ keepEndScreen: true });
+        console.log("✅ Cleanup executed shortly after end.");
+      }, 400);
 
        // ——— NEW: أرسل سجل المحاولة إلى clientLog بدون انتظار ———
        try {
@@ -726,6 +759,12 @@ async init() {
         console.log("✅ Cleanup executed after 1s (end screen kept).");
       }, 1000);
     }
+
+    setTimeout(() => {
+      this.cleanupSession({ keepEndScreen: true });
+      // ✨ صفّر الواجهة (مع إبقاء endScreen لو ظهرت):
+      this.resetPageToInitial();
+    }, 400);
 
     async playAgain() {
         await this.cleanupSession();
@@ -1406,19 +1445,38 @@ async init() {
                 meta: { ...(meta || {}), context: ctx }
             };
 
-            const resp = await fetch(this.config.EDGE_REPORT_URL, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-App-Key': this.config.APP_KEY
-              },
-              body: JSON.stringify(payload)
-            });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            // ✉️ أرسل فوراً في الخلفية
+            try {
+              const body = JSON.stringify(payload);
+              const urlWithKey = `${this.config.EDGE_REPORT_URL}?k=${encodeURIComponent(this.config.APP_KEY)}`;
+              let sent = false;
 
-            this.showToast("تم إرسال بلاغك بنجاح. شكراً لك!", "success");
+              if (navigator.sendBeacon) {
+                const blob = new Blob([body], { type: "application/json" });
+                sent = navigator.sendBeacon(urlWithKey, blob);
+              }
+              if (!sent) {
+                fetch(this.config.EDGE_REPORT_URL, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'X-App-Key': this.config.APP_KEY },
+                  body
+                }).catch(()=>{ /* تجاهل */ });
+              }
 
-        } catch (err) {
+              this.showToast("جاري إرسال البلاغ في الخلفية…", "info");
+            } catch (err) {
+              console.error("Report fire-and-forget error:", err);
+              this.showToast("تعذر إرسال البلاغ الآن. سنحاول تلقائياً لاحقاً.", "error");
+            } finally {
+              // تنظيف حقول المرفقات والمعاينة
+              if (this.dom.problemScreenshot) this.dom.problemScreenshot.value = '';
+              if (this.dom.reportImagePreview) {
+               this.dom.reportImagePreview.style.display = 'none';
+                this.dom.reportImagePreview.querySelector('img').src = '';
+              }
+            }
+
+            } catch (err) {
             console.error("Supabase report error:", err);
             this.showToast("حدث خطأ أثناء إرسال البلاغ.", "error");
         } finally {
@@ -1831,38 +1889,90 @@ async init() {
         return String(Math.abs(h));
     }
 
-    tryLock(actionKey, lockMs = 1200) {
-      const until = this.actionLocks.get(actionKey) || 0;
-      const now = Date.now();
-      if (now < until) return false;   // ما زال مقفول
-      this.actionLocks.set(actionKey, now + lockMs);
-      setTimeout(() => {
-        if (this.actionLocks.get(actionKey) <= now + lockMs) this.actionLocks.delete(actionKey);
-      }, lockMs + 50);
-      return true;
+// ————— إرسال في الخلفية مع طابور —————
+bgPost(url, payload = {}, { queryKey = this.config.APP_KEY, expectJson = false, queueType = 'generic' } = {}) {
+  try {
+    const fullUrl = queryKey ? `${url}${url.includes('?') ? '&' : '?'}k=${encodeURIComponent(queryKey)}` : url;
+    const bodyStr = JSON.stringify(payload);
+
+    // 1) sendBeacon أولاً
+    if (navigator.sendBeacon) {
+      const ok = navigator.sendBeacon(fullUrl, new Blob([bodyStr], { type: 'application/json' }));
+      if (ok) return Promise.resolve({ queued:false, sent:true });
+      // لو رجعت false، نكمل على keepalive
     }
 
-    tryLockForAction(action, targetEl) {
-      // قفل على اسم الإجراء
-      if (!this.tryLock(`act:${action}`, 1200)) return false;
-      // وسِم الزر كمشغول لحظيًا
-      if (targetEl) this.setBusy(targetEl, true, 1200);
-      return true;
-    }
+    // 2) fetch keepalive (لا يوقف التنقل)
+    return fetch(fullUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, // بدون X-App-Key مع sendBeacon
+      body: bodyStr,
+      keepalive: true,
+    })
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = expectJson ? await res.json().catch(() => ({})) : null;
+      return { queued:false, sent:true, data };
+    })
+    .catch((err) => {
+      // 3) فشل—ادفع للطابور
+      this.enqueueForRetry({ url: fullUrl, body: bodyStr, expectJson, queueType });
+      return { queued:true, sent:false, error:String(err) };
+    });
 
-    setBusy(el, busy = true, autoMs = 1500) {
-      if (!el) return;
-      if (busy) {
-        el.setAttribute('aria-disabled', 'true');
-        el.classList.add('is-busy');
-        el.disabled = true;
-        if (autoMs > 0) setTimeout(() => this.setBusy(el, false, 0), autoMs);
-      } else {
-        el.removeAttribute('aria-disabled');
-        el.classList.remove('is-busy');
-        el.disabled = false;
+  } catch (e) {
+    // أخطاء غير متوقعة—ادفع للطابور
+    try { this.enqueueForRetry({ url, body: JSON.stringify(payload), expectJson, queueType }); } catch(_) {}
+    return Promise.resolve({ queued:true, sent:false, error:String(e) });
+  }
+},
+
+enqueueForRetry(entry) {
+  try {
+    const key = 'bgQueue';
+    const q = JSON.parse(localStorage.getItem(key) || '[]');
+    q.push({
+      ...entry,
+      ts: Date.now(),
+      tries: 0
+    });
+    localStorage.setItem(key, JSON.stringify(q.slice(-50))); // احتفظ بآخر 50 عنصر
+  } catch (e) {
+    console.warn('Failed to enqueue retry:', e);
+  }
+},
+
+async retryQueue() {
+  try {
+    const key = 'bgQueue';
+    const q = JSON.parse(localStorage.getItem(key) || '[]');
+    if (!q.length) return;
+
+    const remain = [];
+    for (const item of q) {
+      try {
+        const res = await fetch(item.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: item.body,
+          keepalive: true,
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        // إن احتجنا JSON:
+        if (item.expectJson) { await res.json().catch(()=>({})); }
+
+      } catch (e) {
+        // احتفظ به للمحاولة اللاحقة (بحد أقصى 10 محاولات)
+        const tries = (item.tries || 0) + 1;
+        if (tries < 10) remain.push({ ...item, tries });
       }
     }
+    localStorage.setItem(key, JSON.stringify(remain));
+  } catch (e) {
+    console.warn('retryQueue error:', e);
+  }
+},
 
     async sendClientLog(event = 'log', payload = {}) {
       try {
@@ -1881,6 +1991,25 @@ async init() {
           })
         });
       } catch (_) { /* تجاهل */ }
+    }
+
+    getCooldownKey() {
+      const did = this.getOrSetDeviceId();
+      return `quizCooldown:${did}`;
+    }
+    startCooldown(seconds = this.COOLDOWN_SECONDS) {
+      const until = Date.now() + (seconds * 1000);
+     localStorage.setItem(this.getCooldownKey(), String(until));
+      return until;
+    }
+    getCooldownRemaining() {
+      const raw = localStorage.getItem(this.getCooldownKey());
+      const until = raw ? Number(raw) : 0;
+      const remain = Math.max(0, Math.ceil((until - Date.now()) / 1000));
+      return remain;
+    }
+    clearCooldown() {
+      localStorage.removeItem(this.getCooldownKey());
     }
 }
 
