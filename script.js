@@ -30,7 +30,7 @@ class QuizGame {
                 skipQuestionIncrement: 0
             },
             SKIP_WEIGHT: 0.7,
-            CLICK_DEBOUNCE_MS: 500,        // منع النقرات السريعة (نصف ثانية مناسب)
+            CLICK_DEBOUNCE_MS: 600,        // منع النقرات السريعة (نصف ثانية مناسب)
             COOLDOWN_SECONDS: 30,          // مؤقّت 30 ثانية بعد انتهاء الجولة
             REQ_TIMEOUT_MS: 10000,         // مهلة الشبكة لطلبات الحفظ (10 ثوانٍ)
         };
@@ -747,28 +747,47 @@ async init() {
     }
 
     startRetryCountdownUI() {
-        const el = this.dom.retryCountdown;
-        const hint = this.dom.retryHint;
-        if (!el && !hint) return;
+        const btn = this.getEl('#playAgainBtn') || this.getEl('#endScreen [data-action="playAgain"]');
+        if (!btn) return;
 
-        hint && (hint.style.display = 'block');
-        const tick = () => {
+        const originalText = btn.dataset.originalText || btn.textContent || 'لعب مرة أخرى';
+        btn.dataset.originalText = originalText;
+
+        const applyState = () => {
             const r = this.getCooldownRemaining();
-            if (el) el.textContent = String(r);
-            if (r <= 0) {
-                hint && (hint.style.display = 'none');
-                if (el) el.textContent = '0';
+            if (r > 0) {
+                btn.disabled = true;
+                btn.setAttribute('aria-busy', 'true');
+                btn.textContent = `🔒 يمكنك اللعب مجددًا بعد ${r} ثانية`;
+            } else {
+                btn.disabled = false;
+                btn.removeAttribute('aria-busy');
+                btn.textContent = originalText;
                 clearInterval(int);
             }
         };
-        tick();
-        const int = setInterval(tick, 1000);
+
+        applyState();
+        const int = setInterval(applyState, 1000);
         this.cleanupQueue.push({ type: 'interval', id: int });
     }
 
     updateRetryCountdownUI(remain) {
-        if (this.dom.retryHint) this.dom.retryHint.style.display = 'block';
-        if (this.dom.retryCountdown) this.dom.retryCountdown.textContent = String(remain);
+        const btn = this.getEl('#playAgainBtn') || this.getEl('#endScreen [data-action="playAgain"]');
+        if (!btn) return;
+
+        const originalText = btn.dataset.originalText || btn.textContent || 'لعب مرة أخرى';
+        btn.dataset.originalText = originalText;
+
+        if (remain > 0) {
+            btn.disabled = true;
+            btn.setAttribute('aria-busy', 'true');
+            btn.textContent = `🔒 يمكنك اللعب مجددًا بعد ${remain} ثانية`;
+        } else {
+            btn.disabled = false;
+            btn.removeAttribute('aria-busy');
+            btn.textContent = originalText;
+        }
     }
 
     calculateFinalStats(completedAll) {
