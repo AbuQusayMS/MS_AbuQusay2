@@ -30,6 +30,9 @@ class QuizGame {
                 skipQuestionIncrement: 0
             },
             SKIP_WEIGHT: 0.7,
+            CLICK_DEBOUNCE_MS: 500,        // منع النقرات السريعة (نصف ثانية مناسب)
+            COOLDOWN_SECONDS: 30,          // مؤقّت 30 ثانية بعد انتهاء الجولة
+            REQ_TIMEOUT_MS: 10000,         // مهلة الشبكة لطلبات الحفظ (10 ثوانٍ)
         };
 
         this.supabase = null;
@@ -46,6 +49,8 @@ class QuizGame {
         this.answerSubmitted = false;
         this.pendingRequests = new Set();
         this.lbFirstOpenDone = false; // لضبط الفلتر "الكل" عند أول فتح فقط
+        this.idempotency = new Set();     // لمنع التكرار (إرسال نفس الطلب مرتين)
+        this.lastActionAt = new Map();    // قفل مؤقت للنقرات لكل action
 
         this.setupErrorHandling();
         this.setupBackButtonHandler();
@@ -194,7 +199,10 @@ async init() {
             reportImagePreview: byId('reportImagePreview'),
             includeAutoDiagnostics: byId('includeAutoDiagnostics'),
             lbMode: byId('lbMode'),
-            lbAttempt: byId('lbAttempt')
+            lbAttempt: byId('lbAttempt'),
+
+            retryHint: byId('retryHint'),
+            retryCountdown: byId('retryCountdown')
         };
     }
 
@@ -216,7 +224,7 @@ async init() {
                 showAvatarScreen: () => this.showScreen('avatar'),
                 showNameEntryScreen: () => this.showScreen('nameEntry'),
                 confirmName: () => this.handleNameConfirmation(),
-                postInstructionsStart: () => this.postInstructionsStart(),
+                postInstructionsStart: () => this.postInstructionsStartGuarded(target),
                 showLeaderboard: () => this.displayLeaderboard(),
                 showStartScreen: () => this.showScreen('start'),
                 toggleTheme: () => this.toggleTheme(),
@@ -228,15 +236,16 @@ async init() {
                 },
                 endGame: () => this.endGame(),
                 nextLevel: () => this.nextLevel(),
-                playAgain: () => this.playAgain(),
+                playAgain: () => this.playAgainGuarded(target),
                 shareOnX: () => this.shareOnX(),
                 shareOnInstagram: () => this.shareOnInstagram(),
                 saveCroppedAvatar: () => this.saveCroppedAvatar()
             };
             
+            if (!this.guardAction(target, action)) return;
             if (actionHandlers[action]) {
-                this.playSound('click');
-                actionHandlers[action]();
+              this.playSound('click');
+              actionHandlers[action]();
             }
         });
 
@@ -245,14 +254,20 @@ async init() {
             if (e.key === 'Enter') this.handleNameConfirmation();
         });
         
-        this.dom.reportProblemForm.addEventListener('submit', (e) => this.handleReportSubmit(e));
+        this.dom.reportProblemForm.addEventListener('submit', (e) => this.handleReportSubmitGuarded(e));
         
         if (this.dom.optionsGrid) {
-         this.dom.optionsGrid.addEventListener('click', e => {
-           const btn = e.target.closest('.option-btn');
-           if (btn) this.checkAnswer(btn);
-         });
-       }
+            this.dom.optionsGrid.addEventListener('click', e => {
+               const btn = e.target.closest('.option-btn');
+                if (!btn) return;
+
+                // 👇 منع الضغطات المتكرّرة على الخيارات
+                this.getAllEl('.option-btn').forEach(b => b.classList.add('disabled'));
+
+                // 👇 استدعاء التحقق من الإجابة بعد تعطيل الأزرار
+                this.checkAnswer(btn);
+            });
+        }
 
         const helpersEl = this.getEl('.helpers');
         if (helpersEl) {
@@ -352,6 +367,41 @@ async init() {
 
     generateSessionId() {
         return `S${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    }
+
+    guardAction(target, actionName, extraMs = 0) {
+      const now = Date.now();
+      const prev = this.lastActionAt.get(actionName) || 0;
+      if (now - prev < this.config.CLICK_DEBOUNCE_MS + extraMs) return false;
+      this.lastActionAt.set(actionName, now);
+
+      if (target) {
+        if (target.dataset.busy === '1') return false;
+        target.dataset.busy = '1';
+        target.setAttribute('aria-disabled', 'true');
+        target.classList.add('is-busy');
+        setTimeout(() => {
+          target.dataset.busy = '0';
+          target.removeAttribute('aria-disabled');
+          target.classList.remove('is-busy');
+        }, this.config.CLICK_DEBOUNCE_MS + extraMs);
+      }
+      return true;
+    }
+
+    bgPost(url, bodyObj, headers = {}) {
+      try {
+        const body = JSON.stringify(bodyObj || {});
+        const urlWithKey = url.includes('?') ? `${url}&k=${encodeURIComponent(this.config.APP_KEY)}`
+                                         : `${url}?k=${encodeURIComponent(this.config.APP_KEY)}`;
+        if (navigator.sendBeacon) {
+          const blob = new Blob([body], { type: 'application/json' });
+          navigator.sendBeacon(urlWithKey, blob);
+          return;
+        }
+        fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json', ...headers }, body, keepalive:true })
+          .catch(()=>{});
+      } catch(_) {}
     }
 
     async cleanupSession(opts = {}) {
@@ -636,97 +686,89 @@ async init() {
         }
     }
 
-    async endGame(completedAllLevels = false) {
-      this.clearAllTimers();
-      this.hideModal('confirmExit');
+     async endGame(completedAllLevels = false) {
+        this.clearAllTimers();
+        this.hideModal('confirmExit');
 
-      const baseStats = this.calculateFinalStats(completedAllLevels);
+        const baseStats = this.calculateFinalStats(completedAllLevels);
 
-      try {
-        const perf = await this.ratePerformance(baseStats);
-        baseStats.performance_rating = perf.label;
-        baseStats.performance_score  = perf.score;
-      } catch (_) {
-        const acc = Number(baseStats.accuracy || 0);
-        baseStats.performance_rating =
-          (acc >= 90) ? "ممتاز 🏆" :
-          (acc >= 75) ? "جيد جدًا ⭐" :
-          (acc >= 60) ? "جيد 👍" :
-          (acc >= 40) ? "مقبول 👌" : "يحتاج إلى تحسين 📈";
-      }
+        try {
+            const perf = await this.ratePerformance(baseStats);
+            baseStats.performance_rating = perf.label;
+            baseStats.performance_score  = perf.score;
+        } catch (_) {
+            const acc = Number(baseStats.accuracy || 0);
+            baseStats.performance_rating =
+                (acc >= 90) ? "ممتاز 🏆" :
+                (acc >= 75) ? "جيد جدًا ⭐" :
+                (acc >= 60) ? "جيد 👍" :
+                (acc >= 40) ? "مقبول 👌" : "يحتاج إلى تحسين 📈";
+        }
 
-      const saveResult = await this.saveResultsToSupabase(baseStats);
+        // 1) أعرض شاشة النهاية فورًا
+        this.displayFinalStats(baseStats);
+        if (completedAllLevels) this.playSound('win'); else this.playSound('loss');
+        this.showScreen('end');
 
-      if (saveResult.error) {
-        this.showToast("فشل إرسال النتائج إلى السيرفر", "error");
-      } else {
-        // رقم المحاولة القادم من الـ Edge
-        baseStats.attempt_number = saveResult.attemptNumber;
-        this.gameState.attemptNumber = saveResult.attemptNumber;
+        // 2) فعّل مؤقّت 30 ثانية للجهاز وابدأ العدّ الظاهري
+        this.setCooldown(this.config.COOLDOWN_SECONDS);
+        this.startRetryCountdownUI();
 
-       // ——— NEW: أرسل سجل المحاولة إلى clientLog بدون انتظار ———
-       try {
-         const payload = {
-           event: "attempt-log",
-           session_id: this.gameState.sessionId,
-           device_id: this.gameState.deviceId,
-           time: new Date().toISOString(),
-           payload: {
-             attempt_number: this.gameState.attemptNumber,
-             device_id: this.gameState.deviceId,
-             player_id: this.gameState.playerId,
-             name: this.gameState.name,
-             correct_answers: baseStats.correct_answers,
-             wrong_answers: baseStats.wrong_answers,
-             accuracy: baseStats.accuracy,
-             skips: baseStats.skips,
-             used_fifty_fifty: baseStats.used_fifty_fifty,
-             used_freeze_time: baseStats.used_freeze_time,
-             score: baseStats.score,
-             total_time: baseStats.total_time,
-             avg_time: baseStats.avg_time,
-             level: baseStats.level,
-             performance_rating: baseStats.performance_rating,
-             performance_score: baseStats.performance_score ?? null,
-           },
-         };
+        // 3) إرسال النتائج في الخلفية — عند وصول attemptNumber نحدّث الواجهة
+        this.saveResultsToSupabase(baseStats).then((res) => {
+            if (!res?.error && res?.attemptNumber) {
+                baseStats.attempt_number = res.attemptNumber;
+                this.gameState.attemptNumber = res.attemptNumber;
+                const el = this.getEl('#finalAttemptNumber');
+                if (el) el.textContent = String(res.attemptNumber);
+                this.playSound('coin');
+                this.showToast('تم حفظ نتيجتك!', 'success');
+            } else if (res?.error) {
+                this.showToast('تعذّر حفظ النتيجة — سنحاول لاحقًا.', 'error');
+            }
+        }).catch(()=>{});
 
-         // عند استخدام sendBeacon لا يمكن إرسال هيدرز، لذا نمرّر المفتاح كسطر استعلام k=
-         const urlWithKey = `${this.config.EDGE_LOG_URL}?k=${encodeURIComponent(this.config.APP_KEY)}`;
-         const headers = { "Content-Type": "application/json", "X-App-Key": this.config.APP_KEY };
-         const body = JSON.stringify(payload);
-
-         // جرّب sendBeacon أولاً (لا يعرقل التنقل بين الصفحات)
-        if (navigator.sendBeacon) {
-           const blob = new Blob([body], { type: "application/json" });
-           navigator.sendBeacon(urlWithKey, blob);
-         } else {
-           // Fall-back: fetch بدون await (fire-and-forget)
-           fetch(this.config.EDGE_LOG_URL, { method: "POST", headers, body }).catch(()=>{});
-         }
-       } catch (e) {
-         console.warn("⚠️ فشل إرسال attempt-log إلى clientLog:", e);
-       }
-       // ——— END NEW ———
-      }
-
-      this.displayFinalStats(baseStats);
-
-      if (completedAllLevels) this.playSound('win');
-      else this.playSound('loss');
-
-      this.showScreen('end');
-
-      setTimeout(() => {
-        this.cleanupSession({ keepEndScreen: true });
-        console.log("✅ Cleanup executed after 1s (end screen kept).");
-      }, 1000);
+        // 4) تنظيف شامل مع إبقاء شاشة النهاية
+        setTimeout(() => {
+            this.cleanupSession({ keepEndScreen: true });
+        }, 800);
     }
 
-    async playAgain() {
+    async playAgainGuarded(btn) {
+        const remain = this.getCooldownRemaining();
+        if (remain > 0) {
+            this.updateRetryCountdownUI(remain);
+            this.showToast(`⏳ يمكنك المحاولة بعد ${remain} ثانية.`, 'info');
+            return;
+        }
         await this.cleanupSession();
         this.currentSessionId = this.generateSessionId();
         window.location.reload();
+    }
+
+    startRetryCountdownUI() {
+        const el = this.dom.retryCountdown;
+        const hint = this.dom.retryHint;
+        if (!el && !hint) return;
+
+        hint && (hint.style.display = 'block');
+        const tick = () => {
+            const r = this.getCooldownRemaining();
+            if (el) el.textContent = String(r);
+            if (r <= 0) {
+                hint && (hint.style.display = 'none');
+                if (el) el.textContent = '0';
+                clearInterval(int);
+            }
+        };
+        tick();
+        const int = setInterval(tick, 1000);
+        this.cleanupQueue.push({ type: 'interval', id: int });
+    }
+
+    updateRetryCountdownUI(remain) {
+        if (this.dom.retryHint) this.dom.retryHint.style.display = 'block';
+        if (this.dom.retryCountdown) this.dom.retryCountdown.textContent = String(remain);
     }
 
     calculateFinalStats(completedAll) {
@@ -797,6 +839,10 @@ async init() {
         ...resultsData
       };
 
+      const idemKey = `save:${payload.session_id}`;
+      if (this.idempotency.has(idemKey)) return { attemptNumber:null, error:null };
+      this.idempotency.add(idemKey);
+
       // نستخدم AbortController لتمكين الإلغاء وقت التنظيف
       const ctrl = new AbortController();
       this.pendingRequests.add(ctrl);
@@ -804,7 +850,7 @@ async init() {
       // مهلة أمان تلقائية (10 ثواني) ثم إلغاء الطلب
       const timeoutId = setTimeout(() => {
         try { ctrl.abort('timeout'); } catch(_) {}
-      }, 10000);
+      }, this.config.REQ_TIMEOUT_MS);
       // نسجّل المهلة حتى تُلغى عند الـ cleanup
       this.cleanupQueue.push({ type: 'timeout', id: timeoutId });
 
@@ -1285,6 +1331,18 @@ async init() {
         this.dom.confirmNameBtn.disabled = !isValid;
     }
 
+    async postInstructionsStartGuarded(targetBtn) {
+        const remain = this.getCooldownRemaining();
+        if (remain > 0) {
+            this.showToast(`⏳ انتظر ${remain} ثانية قبل المحاولة التالية.`, 'info');
+            this.updateRetryCountdownUI(remain);
+            return;
+        }
+        await this.cleanupSession();
+        this.setupInitialGameState();
+        this.startGameFlow(0);
+    }
+
     showPlayerDetails(player) {
         this.getEl('#detailsName').textContent = player.name || 'غير معروف';
         this.getEl('#detailsPlayerId').textContent = player.player_id || 'N/A';
@@ -1357,73 +1415,74 @@ async init() {
         return `hsl(${hue} 70% 45%)`;
     }
 
-    async handleReportSubmit(event) {
-        event.preventDefault();
+    handleReportSubmitGuarded(event) {
+      event.preventDefault();
 
-        const formData = new FormData(event.target);
-        const problemLocation = formData.get('problemLocation');
+      const form = event.target;
+      if (form.dataset.busy === '1') return;
+      form.dataset.busy = '1';
+      setTimeout(()=>{ form.dataset.busy = '0'; }, this.config.CLICK_DEBOUNCE_MS + 300);
 
-        const reportData = {
-            type: formData.get('problemType'),
-            description: formData.get('problemDescription'),
-            name: this.gameState.name || 'لم يبدأ اللعب',
-            player_id: this.gameState.playerId || 'N/A',
-            question_text: this.dom.questionText.textContent || 'لا يوجد'
-        };
+      const formData = new FormData(form);
+      const problemLocation = formData.get('problemLocation');
 
-        let meta = null;
-        if (this.dom.includeAutoDiagnostics?.checked) {
-            meta = this.getAutoDiagnostics();
-            meta.locationHint = problemLocation;
-        }
+      const reportData = {
+        type: formData.get('problemType'),
+        description: formData.get('problemDescription'),
+        name: this.gameState.name || 'لم يبدأ اللعب',
+        player_id: this.gameState.playerId || 'N/A',
+        question_text: this.dom.questionText?.textContent || 'لا يوجد'
+      };
 
-        const ctx = this.buildQuestionRef();
+      let meta = null;
+      if (this.dom.includeAutoDiagnostics?.checked) {
+        meta = this.getAutoDiagnostics();
+        meta.locationHint = problemLocation;
+      }
+      const ctx = this.buildQuestionRef();
 
-        this.showToast("جاري إرسال البلاغ...", "info");
+      const idemKey = `report:${this.simpleHash(JSON.stringify({reportData,ctx}))}`;
+      if (this.idempotency.has(idemKey)) {
+        this.showToast("تم إرسال هذا البلاغ بالفعل.", "info");
         this.hideModal('advancedReport');
+        return;
+      }
+      this.idempotency.add(idemKey);
 
-        try {
-            let image_url = null;
-            const file = this.dom.problemScreenshot.files?.[0];
-            if (file) {
-                const fileName = `report_${Date.now()}_${Math.random().toString(36).slice(2)}.${(file.type.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '')}`;
-                const { data: up, error: upErr } = await this.supabase.storage
-                    .from('reports')
-                    .upload(fileName, file, { contentType: file.type, upsert: true });
-                if (upErr) throw upErr;
+      this.showToast("سيتم إرسال البلاغ في الخلفية…", "info");
+      this.hideModal('advancedReport');
 
-                const { data: pub } = this.supabase.storage.from('reports').getPublicUrl(up.path);
-                image_url = pub?.publicUrl || null;
+      (async () => {
+       try {
+          let image_url = null;
+          const file = this.dom.problemScreenshot?.files?.[0];
+          if (file) {
+            const fileName = `report_${Date.now()}_${Math.random().toString(36).slice(2)}.${(file.type.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '')}`;
+            const { data: up, error: upErr } = await this.supabase.storage.from('reports').upload(fileName, file, { contentType: file.type, upsert: true });
+            if (upErr) throw upErr;
+            const { data: pub } = this.supabase.storage.from('reports').getPublicUrl(up.path);
+            image_url = pub?.publicUrl || null;
+          }
+
+          const payload = { ...reportData, image_url, meta: { ...(meta || {}), context: ctx } };
+          this.bgPost(this.config.EDGE_REPORT_URL, payload, { 'X-App-Key': this.config.APP_KEY });
+
+          try {
+            form.reset();
+            if (this.dom.reportImagePreview) {
+              this.dom.reportImagePreview.style.display = 'none';
+              this.dom.reportImagePreview.querySelector('img').src = '';
             }
+            if (this.dom.problemScreenshot) this.dom.problemScreenshot.value = '';
+          } catch(_) {}
 
-            const payload = {
-                ...reportData,
-                image_url,
-                meta: { ...(meta || {}), context: ctx }
-            };
-
-            const resp = await fetch(this.config.EDGE_REPORT_URL, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-App-Key': this.config.APP_KEY
-              },
-              body: JSON.stringify(payload)
-            });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
-            this.showToast("تم إرسال بلاغك بنجاح. شكراً لك!", "success");
+          setTimeout(()=> this.showToast("تم إرسال بلاغك. شكرًا لك!", "success"), 400);
 
         } catch (err) {
-            console.error("Supabase report error:", err);
-            this.showToast("حدث خطأ أثناء إرسال البلاغ.", "error");
-        } finally {
-            if (this.dom.problemScreenshot) this.dom.problemScreenshot.value = '';
-            if (this.dom.reportImagePreview) {
-                this.dom.reportImagePreview.style.display = 'none';
-                this.dom.reportImagePreview.querySelector('img').src = '';
-            }
+          console.error("Report error:", err);
+          this.showToast("تعذّر إرسال البلاغ الآن.", "error");
         }
+      })();
     }
 
     shuffleArray(array) {
@@ -1441,6 +1500,25 @@ async init() {
             localStorage.setItem('quizGameDeviceId', deviceId);
         }
         return deviceId;
+    }
+
+    getCooldownKey() {
+      const device = this.gameState?.deviceId || this.getOrSetDeviceId();
+      return `quizCooldown:${device}`;
+    }
+    setCooldown(seconds = this.config.COOLDOWN_SECONDS) {
+      const until = Date.now() + (Math.max(1, seconds) * 1000);
+      try { localStorage.setItem(this.getCooldownKey(), String(until)); } catch(_) {}
+    }
+    getCooldownRemaining() {
+      try {
+        const v = Number(localStorage.getItem(this.getCooldownKey()) || 0);
+        const diff = Math.ceil((v - Date.now()) / 1000);
+        return Math.max(0, diff);
+      } catch(_) { return 0; }
+    }
+    clearCooldown() {
+      try { localStorage.removeItem(this.getCooldownKey()); } catch(_) {}
     }
 
     getPerformanceRating(accuracy) {
