@@ -790,6 +790,18 @@ Object.assign(QuizGame.prototype, {
         this.dom.confirmNameBtn.disabled = !isValid;
     },
 
+    postInstructionsStartGuarded: async function (targetBtn) {
+      const remain = this.getCooldownRemaining();
+      if (remain > 0) {
+        this.showToast(`⏳ انتظر ${remain} ثانية قبل المحاولة التالية.`, 'info');
+        this.updateRetryCountdownUI(remain);
+        return;
+      }
+      await this.cleanupSession();
+      this.setupInitialGameState();
+      this.startGameFlow(0);
+    },
+
     /* ———————————————— المساعدات ———————————————— */
     useHelper: function (btn) {
         const type = btn.dataset.type;
