@@ -115,7 +115,7 @@ class QuizGame {
             const action = target.dataset.action;
 
             const actionHandlers = {
-                showAvatarScreen:        () => this.showScreen('avatar'),
+                showAvatarScreen:        () => this.startFromHomeGuarded(target),
                 showNameEntryScreen:     () => this.showScreen('nameEntry'),
                 confirmName:             () => this.handleNameConfirmation(),
                 postInstructionsStart:   () => this.postInstructionsStartGuarded(target),
@@ -265,19 +265,28 @@ class QuizGame {
         return true;
     }
 
-    bgPost(url, bodyObj, headers = {}) {
+     bgPost(url, bodyObj, headers = {}) {
         try {
             const body = JSON.stringify(bodyObj || {});
-            const urlWithKey = url.includes('?') ? `${url}&k=${encodeURIComponent(this.config.APP_KEY)}`
-                                                 : `${url}?k=${encodeURIComponent(this.config.APP_KEY)}`;
+            const urlWithKey = url.includes('?')
+                ? `${url}&k=${encodeURIComponent(this.config.APP_KEY)}`
+                : `${url}?k=${encodeURIComponent(this.config.APP_KEY)}`;
+
             if (navigator.sendBeacon) {
                 const blob = new Blob([body], { type: 'application/json' });
                 navigator.sendBeacon(urlWithKey, blob);
                 return;
             }
-            fetch(url, { method: 'POST', headers: { 'Content-Type':'application/json', ...headers }, body, keepalive:true })
-                .catch(()=>{});
-        } catch(_) {}
+
+            fetch(urlWithKey, {
+                method: 'POST',
+                mode: 'cors',
+                credentials: 'omit',          // ✅ امنع إرسال أي كوكيز/كريدنشيلز
+                headers: { 'Content-Type': 'application/json' }, // ✅ لا تُرسل X-App-Key هنا
+                body,
+                keepalive: true
+            }).catch(() => {});
+        } catch (_) {}
     }
 
     /* ———————————————— معالجة الأخطاء وزر الرجوع ———————————————— */
@@ -376,8 +385,11 @@ class QuizGame {
             if (['gameContainer','leaderboardScreen','endScreen'].includes(id)) {
                 history.pushState({ screen: id }, '', `#${id}`);
             }
+            // ✅ ابدأ عداد قفل زر البداية عند فتح شاشة البداية
+            if (screenName === 'start') this.startStartCooldownUI();
         }
     }
+
     showModal(nameOrId) { (this.dom.modals[nameOrId] || document.getElementById(nameOrId))?.classList.add('active'); }
     hideModal(nameOrId) { (this.dom.modals[nameOrId] || document.getElementById(nameOrId))?.classList.remove('active'); }
 
@@ -721,6 +733,60 @@ Object.assign(QuizGame.prototype, {
         else { btn.disabled = false; btn.removeAttribute('aria-busy'); btn.textContent = originalText; }
     },
 
+       // قفل زر البداية بنفس منطق “لعب مرة أخرى”
+    startFromHomeGuarded: async function (btn) {
+        const remain = this.getCooldownRemaining();
+        if (remain > 0) {
+            this.updateStartCooldownUI(remain);
+            this.showToast(`⏳ يمكنك البدء بعد ${remain} ثانية.`, 'info');
+            return;
+        }
+        this.showScreen('avatar');
+    },
+
+    startStartCooldownUI: function () {
+        const btn = this.getEl('#startBtn');
+        if (!btn) return;
+
+        const originalText = btn.dataset.originalText || btn.textContent || 'ابدأ اللعب';
+        btn.dataset.originalText = originalText;
+
+        const applyState = () => {
+            const r = this.getCooldownRemaining();
+            if (r > 0) {
+                btn.disabled = true;
+                btn.setAttribute('aria-busy', 'true');
+                btn.textContent = `🔒 يمكنك البدء بعد ${r} ثانية`;
+            } else {
+                btn.disabled = false;
+                btn.removeAttribute('aria-busy');
+                btn.textContent = originalText;
+                clearInterval(int);
+            }
+        };
+
+        applyState();
+        const int = setInterval(applyState, 1000);
+        this.cleanupQueue.push({ type: 'interval', id: int });
+    },
+
+    updateStartCooldownUI: function (remain) {
+        const btn = this.getEl('#startBtn');
+        if (!btn) return;
+        const originalText = btn.dataset.originalText || btn.textContent || 'ابدأ اللعب';
+        btn.dataset.originalText = originalText;
+
+        if (remain > 0) {
+            btn.disabled = true;
+            btn.setAttribute('aria-busy', 'true');
+            btn.textContent = `🔒 يمكنك البدء بعد ${remain} ثانية`;
+        } else {
+            btn.disabled = false;
+            btn.removeAttribute('aria-busy');
+            btn.textContent = originalText;
+        }
+    },
+
     /* ———————————————— تنظيف شامل ———————————————— */
     async cleanupSession(opts = {}) {
         const { keepEndScreen = false } = opts;
@@ -1008,7 +1074,6 @@ Object.assign(QuizGame.prototype, {
         }
     },
 
-    /* ———————————————— حفظ النتيجة ———————————————— */
     /* ———————————————— حفظ النتيجة ———————————————— */
     async saveResultsToSupabase(resultsData) {
         const payload = {
@@ -1300,7 +1365,7 @@ Object.assign(QuizGame.prototype, {
                 }
 
                 const payload = { ...reportData, image_url, meta: { ...(meta || {}), context: ctx } };
-                this.bgPost(this.config.EDGE_REPORT_URL, payload, { 'X-App-Key': this.config.APP_KEY });
+                this.bgPost(this.config.EDGE_REPORT_URL, payload);
 
                 try {
                     form.reset();
