@@ -716,22 +716,17 @@ Object.assign(QuizGame.prototype, {
         window.location.reload();
     },
     startRetryCountdownUI: function () {
-      const btn = this.getEl('#playAgainBtn') || this.getEl('#endScreen [data-action="playAgain"]');
-      const label = this.dom.retryCountdown || this.getEl('#retryCountdown'); // اختياري لو موجود
+      const btn   = this.getEl('#playAgainBtn') || this.getEl('#endScreen [data-action="playAgain"]');
+      const label = this.dom.retryCountdown || this.getEl('#retryCountdown');
       if (!btn) return;
 
       const originalText = btn.dataset.originalText || btn.textContent || 'لعب مرة أخرى';
       btn.dataset.originalText = originalText;
 
-      // خزّن المرجع حتى لو حبّينا نوقفه يدويًا لاحقًا
-      let intervalId = null;
-      this._endCountdownInterval && clearInterval(this._endCountdownInterval);
-
       const applyState = () => {
         const r = this.getCooldownRemaining();
-
         if (r > 0) {
-         btn.disabled = true;
+          btn.disabled = true;
           btn.setAttribute('aria-busy', 'true');
           btn.textContent = `🔒 يمكنك اللعب مجددًا بعد ${r} ثانية`;
           if (label) { label.textContent = r; label.style.display = ''; }
@@ -740,22 +735,20 @@ Object.assign(QuizGame.prototype, {
           btn.removeAttribute('aria-busy');
           btn.textContent = originalText;
           if (label) { label.textContent = '0'; label.style.display = ''; }
-          if (intervalId) { clearInterval(intervalId); intervalId = null; }
-          this._endCountdownInterval = null;
+          // أوقف العدّاد عند انتهاء التبريد
+          if (this._endCountdownInterval) {
+            clearInterval(this._endCountdownInterval);
+            this._endCountdownInterval = null;
+          }
         }
       };
 
       applyState();
-      intervalId = setInterval(applyState, 1000);
+      const intervalId = setInterval(applyState, 1000);
       this._endCountdownInterval = intervalId;
 
-      // 🔒 علّم هذا الـ interval بأنه “محمِي” من التنظيف التلقائي
+      // (اختياري) علّم هذا الـ interval كمحمِي من تنظيفات أخرى
       this.cleanupQueue.push({ type: 'interval', id: intervalId, keep: true });
-    },
-
-      applyState();
-      intervalId = setInterval(applyState, 1000);
-      this.cleanupQueue.push({ type: 'interval', id: intervalId });
     },
    
     updateRetryCountdownUI: function (remain) {
