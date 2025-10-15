@@ -708,42 +708,75 @@ Object.assign(QuizGame.prototype, {
         }
         await this.cleanupSession();
         this.currentSessionId = this.generateSessionId();
+
+      if (this._endCountdownInterval) {
+        clearInterval(this._endCountdownInterval);
+        this._endCountdownInterval = null;
+      }
         window.location.reload();
     },
     startRetryCountdownUI: function () {
       const btn = this.getEl('#playAgainBtn') || this.getEl('#endScreen [data-action="playAgain"]');
+      const label = this.dom.retryCountdown || this.getEl('#retryCountdown'); // اختياري لو موجود
       if (!btn) return;
 
       const originalText = btn.dataset.originalText || btn.textContent || 'لعب مرة أخرى';
       btn.dataset.originalText = originalText;
 
+      // خزّن المرجع حتى لو حبّينا نوقفه يدويًا لاحقًا
       let intervalId = null;
+      this._endCountdownInterval && clearInterval(this._endCountdownInterval);
 
       const applyState = () => {
         const r = this.getCooldownRemaining();
+
         if (r > 0) {
-          btn.disabled = true;
+         btn.disabled = true;
           btn.setAttribute('aria-busy', 'true');
           btn.textContent = `🔒 يمكنك اللعب مجددًا بعد ${r} ثانية`;
+          if (label) { label.textContent = r; label.style.display = ''; }
         } else {
           btn.disabled = false;
           btn.removeAttribute('aria-busy');
           btn.textContent = originalText;
-          if (intervalId) clearInterval(intervalId);
+          if (label) { label.textContent = '0'; label.style.display = ''; }
+          if (intervalId) { clearInterval(intervalId); intervalId = null; }
+          this._endCountdownInterval = null;
         }
       };
 
       applyState();
       intervalId = setInterval(applyState, 1000);
+      this._endCountdownInterval = intervalId;
+
+      // 🔒 علّم هذا الـ interval بأنه “محمِي” من التنظيف التلقائي
+      this.cleanupQueue.push({ type: 'interval', id: intervalId, keep: true });
+    },
+
+      applyState();
+      intervalId = setInterval(applyState, 1000);
       this.cleanupQueue.push({ type: 'interval', id: intervalId });
     },
+   
     updateRetryCountdownUI: function (remain) {
-        const btn = this.getEl('#playAgainBtn') || this.getEl('#endScreen [data-action="playAgain"]');
-        if (!btn) return;
-        const originalText = btn.dataset.originalText || btn.textContent || 'لعب مرة أخرى';
-        btn.dataset.originalText = originalText;
-        if (remain > 0) { btn.disabled = true; btn.setAttribute('aria-busy','true'); btn.textContent = `🔒 يمكنك اللعب مجددًا بعد ${remain} ثانية`; }
-        else { btn.disabled = false; btn.removeAttribute('aria-busy'); btn.textContent = originalText; }
+      const btn = this.getEl('#playAgainBtn') || this.getEl('#endScreen [data-action="playAgain"]');
+      const label = this.dom.retryCountdown || this.getEl('#retryCountdown');
+      if (!btn) return;
+
+      const originalText = btn.dataset.originalText || btn.textContent || 'لعب مرة أخرى';
+      btn.dataset.originalText = originalText;
+
+      if (remain > 0) {
+        btn.disabled = true;
+        btn.setAttribute('aria-busy','true');
+        btn.textContent = `🔒 يمكنك اللعب مجددًا بعد ${remain} ثانية`;
+        if (label) { label.textContent = remain; label.style.display = ''; }
+      } else {
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        btn.textContent = originalText;
+        if (label) { label.textContent = '0'; label.style.display = ''; }
+      }
     },
 
        // قفل زر البداية بنفس منطق “لعب مرة أخرى”
@@ -814,9 +847,19 @@ Object.assign(QuizGame.prototype, {
         await this.processCleanupQueue();
     },
     clearAllTimers: function () {
-        if (this.timer.interval) { clearInterval(this.timer.interval); this.timer.interval = null; }
-        this.cleanupQueue.forEach(i => { if (i.type === 'timeout') clearTimeout(i.id); else if (i.type === 'interval') clearInterval(i.id); });
-        this.cleanupQueue = [];
+      // المؤقت العام للسؤال
+      if (this.timer.interval) { clearInterval(this.timer.interval); this.timer.interval = null; }
+
+      // نظّف كل ما في الصف، ما عدا عدّاد نهاية الشاشة (الموسوم keep: true)
+      this.cleanupQueue.forEach(i => {
+        if (i.type === 'timeout') clearTimeout(i.id);
+        else if (i.type === 'interval') {
+          if (i.keep === true) return; // 👈 لا تنظّفه
+          clearInterval(i.id);
+        }
+      });
+      // لا نحذف عناصر keep من القائمة، حتى تبقى موجودة
+      this.cleanupQueue = this.cleanupQueue.filter(i => i.keep === true);
     },
     abortPendingRequests() {
       this.pendingRequests.forEach(controller => {
