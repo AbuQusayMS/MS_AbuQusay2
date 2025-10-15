@@ -1437,7 +1437,7 @@ Object.assign(QuizGame.prototype, {
             console.error('Supabase report insert failed:', e);
             return { ok: false, error: String(e) };
         }
-    }
+    },
 
     /* ———————————————— صور رمزية (رفع/قص) ———————————————— */
     populateAvatarGrid() {
