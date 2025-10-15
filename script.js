@@ -737,9 +737,14 @@ Object.assign(QuizGame.prototype, {
         this.cleanupQueue.forEach(i => { if (i.type === 'timeout') clearTimeout(i.id); else if (i.type === 'interval') clearInterval(i.id); });
         this.cleanupQueue = [];
     },
-    abortPendingRequests: function () {
-        this.pendingRequests.forEach(ctrl => { if (ctrl && !ctrl.signal.aborted) ctrl.abort(); });
-        this.pendingRequests.clear();
+    abortPendingRequests() {
+      this.pendingRequests.forEach(controller => {
+        if (!controller) return;
+        // 👇 تجاهل أي كنترولر موسوم
+        if (controller.__skipAbortOnCleanup) return;
+        if (!controller.signal.aborted) controller.abort();
+      });
+      this.pendingRequests.clear();
     },
     removeTemporaryListeners: function () {
         this.cleanupQueue.forEach(i => { if (i.type === 'listener' && i.element && i.handler) i.element.removeEventListener(i.event, i.handler); });
@@ -1016,6 +1021,7 @@ Object.assign(QuizGame.prototype, {
         this.idempotency.add(idemKey);
 
         const ctrl = new AbortController();
+        ctrl.__skipAbortOnCleanup = true;          // ← لا نلغيه أثناء التنظيف
         this.pendingRequests.add(ctrl);
 
         const timeoutId = setTimeout(() => { try { ctrl.abort('timeout'); } catch(_) {} }, this.config.REQ_TIMEOUT_MS);
@@ -1028,24 +1034,36 @@ Object.assign(QuizGame.prototype, {
                 body: JSON.stringify(payload),
                 signal: ctrl.signal
             });
+
             if (!res.ok) {
                 let errBody = ''; try { errBody = await res.text(); } catch(_) {}
                 throw new Error(`HTTP ${res.status}${errBody ? `: ${errBody}` : ''}`);
             }
+
             let json = {}; try { json = await res.json(); } catch(_) {}
-            this.showToast('تم حفظ نتيجتك بنجاح!', 'success'); this.playSound('coin');
+            this.showToast('تم حفظ نتيجتك بنجاح!', 'success');
+            this.playSound('coin');
+
             return { attemptNumber: json.attempt_number || json.attemptNumber || null, error: null };
+
         } catch (error) {
-            console.error('Save result failed:', error);
-            try { await this.sendClientLog('save-result-failed', { message: String(error), status: error?.status || null }); } catch(_) {}
-            if (typeof this.queueFailedSubmission === 'function') { try { this.queueFailedSubmission(payload); } catch(_) {} }
-            this.showToast('فشل إرسال النتائج إلى السيرفر', 'error');
+            if (error && (error.name === 'AbortError' || String(error).includes('AbortError'))) {
+                console.warn('Save result aborted (cleanup/timeout). Will queue for retry if needed.');
+            } else {
+                console.error('Failed to save results via Edge Function:', error);
+                this.showToast('فشل إرسال النتائج إلى السيرفر', 'error');
+            }
+            if (typeof this.queueFailedSubmission === 'function') {
+                try { this.queueFailedSubmission(payload); } catch(_) {}
+            }
             return { attemptNumber: null, error: String(error) };
+
         } finally {
-            clearTimeout(timeoutId);
-            this.pendingRequests.delete(ctrl);
+            clearTimeout(timeoutId);                 // ← التنظيف دائمًا
+            this.pendingRequests.delete(ctrl);       // ← إزالة الكنترولر من المجموعة
         }
-    },
+    }
+
     queueFailedSubmission(data) {
         try {
             const list = JSON.parse(localStorage.getItem('failedSubmissions') || '[]');
