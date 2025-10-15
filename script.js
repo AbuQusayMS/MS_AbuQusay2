@@ -1338,12 +1338,12 @@ Object.assign(QuizGame.prototype, {
     getAccuracyBarColor(pct) { const p = Math.max(0, Math.min(100, Number(pct) || 0)); const hue = Math.round((p / 100) * 120); return `hsl(${hue} 70% 45%)`; },
 
     /* ———————————————— البلاغات ———————————————— */
-    handleReportSubmitGuarded(event) {
+       handleReportSubmitGuarded(event) {
         event.preventDefault();
         const form = event.target;
         if (form.dataset.busy === '1') return;
         form.dataset.busy = '1';
-        setTimeout(()=>{ form.dataset.busy = '0'; }, this.config.CLICK_DEBOUNCE_MS + 300);
+        setTimeout(() => { form.dataset.busy = '0'; }, this.config.CLICK_DEBOUNCE_MS + 300);
 
         const formData = new FormData(form);
         const problemLocation = formData.get('problemLocation');
@@ -1357,11 +1357,18 @@ Object.assign(QuizGame.prototype, {
         };
 
         let meta = null;
-        if (this.dom.includeAutoDiagnostics?.checked) { meta = this.getAutoDiagnostics(); meta.locationHint = problemLocation; }
+        if (this.dom.includeAutoDiagnostics?.checked) {
+            meta = this.getAutoDiagnostics();
+            meta.locationHint = problemLocation;
+        }
         const ctx = this.buildQuestionRef();
 
         const idemKey = `report:${this.simpleHash(JSON.stringify({ reportData, ctx }))}`;
-        if (this.idempotency.has(idemKey)) { this.showToast('تم إرسال هذا البلاغ بالفعل.', 'info'); this.hideModal('advancedReport'); return; }
+        if (this.idempotency.has(idemKey)) {
+            this.showToast('تم إرسال هذا البلاغ بالفعل.', 'info');
+            this.hideModal('advancedReport');
+            return;
+        }
         this.idempotency.add(idemKey);
 
         this.showToast('يتم إرسال البلاغ…', 'info');
@@ -1373,28 +1380,63 @@ Object.assign(QuizGame.prototype, {
                 const file = this.dom.problemScreenshot?.files?.[0];
                 if (file) {
                     const fileName = `report_${Date.now()}_${Math.random().toString(36).slice(2)}.${(file.type.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '')}`;
-                    const { data: up, error: upErr } = await this.supabase.storage.from('reports').upload(fileName, file, { contentType: file.type, upsert: true });
+                    const { data: up, error: upErr } = await this.supabase
+                        .storage.from('reports')
+                        .upload(fileName, file, { contentType: file.type, upsert: true });
                     if (upErr) throw upErr;
                     const { data: pub } = this.supabase.storage.from('reports').getPublicUrl(up.path);
                     image_url = pub?.publicUrl || null;
                 }
 
-                const payload = { ...reportData, image_url, meta: { ...(meta || {}), context: ctx } };
-                this.bgPost(this.config.EDGE_REPORT_URL, payload);
+                const payload = {
+                    ...reportData,
+                    image_url,
+                    meta: { ...(meta || {}), context: ctx },
+                    // (اختياري) حقول مساعدة للتتبع
+                    device_id: this.gameState?.deviceId || this.getOrSetDeviceId(),
+                    session_id: this.gameState?.sessionId || this.currentSessionId,
+                    created_at: new Date().toISOString()
+                };
+
+                // ⛔️ احذف السطر القديم:
+                // this.bgPost(this.config.EDGE_REPORT_URL, payload);
+
+                // ✅ استخدم الحفظ عبر Supabase وانتظر النتيجة
+                const res = await this.sendReportViaSupabase(payload);
+                if (!res.ok) throw new Error(res.error || 'Insert failed');
 
                 try {
                     form.reset();
-                    if (this.dom.reportImagePreview) { this.dom.reportImagePreview.style.display = 'none'; this.dom.reportImagePreview.querySelector('img').src = ''; }
+                    if (this.dom.reportImagePreview) {
+                        this.dom.reportImagePreview.style.display = 'none';
+                        this.dom.reportImagePreview.querySelector('img').src = '';
+                    }
                     if (this.dom.problemScreenshot) this.dom.problemScreenshot.value = '';
-                } catch(_) {}
+                } catch (_) {}
 
-                setTimeout(()=> this.showToast('تم إرسال بلاغك. شكرًا لك!', 'success'), 400);
+                setTimeout(() => this.showToast('تم إرسال بلاغك. شكرًا لك!', 'success'), 400);
             } catch (err) {
                 console.error('Report error:', err);
                 this.showToast('تعذّر إرسال البلاغ الآن.', 'error');
             }
         })();
     },
+   
+    async sendReportViaSupabase(payload) {
+        try {
+            // غيّر اسم الجدول لو مختلفة عندك
+            const { data, error } = await this.supabase
+                .from('reports_log')
+                .insert([payload])
+                .select('id')
+                .single();
+            if (error) throw error;
+            return { ok: true, id: data?.id || null };
+        } catch (e) {
+            console.error('Supabase report insert failed:', e);
+            return { ok: false, error: String(e) };
+        }
+    }
 
     /* ———————————————— صور رمزية (رفع/قص) ———————————————— */
     populateAvatarGrid() {
