@@ -1364,7 +1364,7 @@ Object.assign(QuizGame.prototype, {
         if (this.idempotency.has(idemKey)) { this.showToast('تم إرسال هذا البلاغ بالفعل.', 'info'); this.hideModal('advancedReport'); return; }
         this.idempotency.add(idemKey);
 
-        this.showToast('سيتم إرسال البلاغ في الخلفية…', 'info');
+        this.showToast('يتم إرسال البلاغ…', 'info');
         this.hideModal('advancedReport');
 
         (async () => {
