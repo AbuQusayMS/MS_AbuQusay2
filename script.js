@@ -1391,11 +1391,13 @@ Object.assign(QuizGame.prototype, {
                 const payload = {
                     ...reportData,
                     image_url,
-                    meta: { ...(meta || {}), context: ctx },
-                    // (اختياري) حقول مساعدة للتتبع
-                    device_id: this.gameState?.deviceId || this.getOrSetDeviceId(),
-                    session_id: this.gameState?.sessionId || this.currentSessionId,
-                    created_at: new Date().toISOString()
+                    // ✅ كل البيانات الإضافية داخل meta فقط
+                    meta: {
+                        ...(meta || {}),
+                        context: ctx,
+                        device_id: this.gameState?.deviceId || this.getOrSetDeviceId(),
+                        session_id: this.gameState?.sessionId || this.currentSessionId
+                    }
                 };
 
                 // ⛔️ احذف السطر القديم:
@@ -1424,9 +1426,8 @@ Object.assign(QuizGame.prototype, {
    
     async sendReportViaSupabase(payload) {
         try {
-            // غيّر اسم الجدول لو مختلفة عندك
             const { data, error } = await this.supabase
-                .from('reports_log')
+                .from('reports')               // ✅ اسم الجدول الصحيح
                 .insert([payload])
                 .select('id')
                 .single();
