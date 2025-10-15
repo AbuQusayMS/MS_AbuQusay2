@@ -1464,7 +1464,7 @@ Object.assign(QuizGame.prototype, {
         console.error('report edge fetch failed:', e);
         return false;
       }
-    }
+    },
 
     /* ———————————————— صور رمزية (رفع/قص) ———————————————— */
     populateAvatarGrid() {
