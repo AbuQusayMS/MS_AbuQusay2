@@ -265,28 +265,29 @@ class QuizGame {
         return true;
     }
 
-     bgPost(url, bodyObj, headers = {}) {
-        try {
-            const body = JSON.stringify(bodyObj || {});
-            const urlWithKey = url.includes('?')
-                ? `${url}&k=${encodeURIComponent(this.config.APP_KEY)}`
-                : `${url}?k=${encodeURIComponent(this.config.APP_KEY)}`;
+     bgPost(url, bodyObj) {
+      try {
+        const body = JSON.stringify(bodyObj || {});
+        const urlWithKey = url.includes('?')
+          ? `${url}&k=${encodeURIComponent(this.config.APP_KEY)}`
+          : `${url}?k=${encodeURIComponent(this.config.APP_KEY)}`;
 
-            if (navigator.sendBeacon) {
-                const blob = new Blob([body], { type: 'application/json' });
-                navigator.sendBeacon(urlWithKey, blob);
-                return;
-            }
+        if (navigator.sendBeacon) {
+          const blob = new Blob([body], { type: 'application/json' });
+          navigator.sendBeacon(urlWithKey, blob);
+          return;
+        }
 
-            fetch(urlWithKey, {
-                method: 'POST',
-                mode: 'cors',
-                credentials: 'omit',          // ✅ امنع إرسال أي كوكيز/كريدنشيلز
-                headers: { 'Content-Type': 'application/json' }, // ✅ لا تُرسل X-App-Key هنا
-                body,
-                keepalive: true
-            }).catch(() => {});
-        } catch (_) {}
+        // Fallback هادئ بدون Preflight
+        fetch(urlWithKey, {
+          method: 'POST',
+          mode: 'no-cors',
+          credentials: 'omit',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          keepalive: true
+        }).catch(() => {});
+      } catch (_) {}
     }
 
     /* ———————————————— معالجة الأخطاء وزر الرجوع ———————————————— */
@@ -710,19 +711,31 @@ Object.assign(QuizGame.prototype, {
         window.location.reload();
     },
     startRetryCountdownUI: function () {
-        const btn = this.getEl('#playAgainBtn') || this.getEl('#endScreen [data-action="playAgain"]');
-        if (!btn) return;
-        const originalText = btn.dataset.originalText || btn.textContent || 'لعب مرة أخرى';
-        btn.dataset.originalText = originalText;
+      const btn = this.getEl('#playAgainBtn') || this.getEl('#endScreen [data-action="playAgain"]');
+      if (!btn) return;
 
-        const applyState = () => {
-            const r = this.getCooldownRemaining();
-            if (r > 0) { btn.disabled = true; btn.setAttribute('aria-busy','true'); btn.textContent = `🔒 يمكنك اللعب مجددًا بعد ${r} ثانية`; }
-            else { btn.disabled = false; btn.removeAttribute('aria-busy'); btn.textContent = originalText; clearInterval(int); }
-        };
-        applyState();
-        const int = setInterval(applyState, 1000);
-        this.cleanupQueue.push({ type: 'interval', id: int });
+      const originalText = btn.dataset.originalText || btn.textContent || 'لعب مرة أخرى';
+      btn.dataset.originalText = originalText;
+
+      let intervalId = null;
+
+      const applyState = () => {
+        const r = this.getCooldownRemaining();
+        if (r > 0) {
+          btn.disabled = true;
+          btn.setAttribute('aria-busy', 'true');
+          btn.textContent = `🔒 يمكنك اللعب مجددًا بعد ${r} ثانية`;
+        } else {
+          btn.disabled = false;
+          btn.removeAttribute('aria-busy');
+          btn.textContent = originalText;
+          if (intervalId) clearInterval(intervalId);
+        }
+      };
+
+      applyState();
+      intervalId = setInterval(applyState, 1000);
+      this.cleanupQueue.push({ type: 'interval', id: intervalId });
     },
     updateRetryCountdownUI: function (remain) {
         const btn = this.getEl('#playAgainBtn') || this.getEl('#endScreen [data-action="playAgain"]');
@@ -745,29 +758,31 @@ Object.assign(QuizGame.prototype, {
     },
 
     startStartCooldownUI: function () {
-        const btn = this.getEl('#startBtn');
-        if (!btn) return;
+      const btn = this.getEl('#startBtn');
+      if (!btn) return;
 
-        const originalText = btn.dataset.originalText || btn.textContent || 'ابدأ اللعب';
-        btn.dataset.originalText = originalText;
+      const originalText = btn.dataset.originalText || btn.textContent || 'ابدأ اللعب';
+      btn.dataset.originalText = originalText;
 
-        const applyState = () => {
-            const r = this.getCooldownRemaining();
-            if (r > 0) {
-                btn.disabled = true;
-                btn.setAttribute('aria-busy', 'true');
-                btn.textContent = `🔒 يمكنك البدء بعد ${r} ثانية`;
-            } else {
-                btn.disabled = false;
-                btn.removeAttribute('aria-busy');
-                btn.textContent = originalText;
-                clearInterval(int);
-            }
-        };
+      let intervalId = null;
 
-        applyState();
-        const int = setInterval(applyState, 1000);
-        this.cleanupQueue.push({ type: 'interval', id: int });
+      const applyState = () => {
+        const r = this.getCooldownRemaining();
+        if (r > 0) {
+          btn.disabled = true;
+          btn.setAttribute('aria-busy', 'true');
+          btn.textContent = `🔒 يمكنك البدء بعد ${r} ثانية`;
+        } else {
+          btn.disabled = false;
+          btn.removeAttribute('aria-busy');
+          btn.textContent = originalText;
+          if (intervalId) clearInterval(intervalId);
+        }
+      };
+
+      applyState();
+      intervalId = setInterval(applyState, 1000);
+     this.cleanupQueue.push({ type: 'interval', id: intervalId });
     },
 
     updateStartCooldownUI: function (remain) {
