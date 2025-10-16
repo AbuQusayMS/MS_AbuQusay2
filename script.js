@@ -1404,8 +1404,8 @@ Object.assign(QuizGame.prototype, {
                 // this.bgPost(this.config.EDGE_REPORT_URL, payload);
 
                 // ✅ استخدم الحفظ عبر Supabase وانتظر النتيجة
-                const res = await this.sendReportViaSupabase(payload);
-                if (!res.ok) throw new Error(res.error || 'Insert failed');
+                const ok = await this.sendReportViaEdge(payload);
+                if (!ok) throw new Error('report edge call failed');
 
                 try {
                     form.reset();
@@ -1423,7 +1423,8 @@ Object.assign(QuizGame.prototype, {
             }
         })();
     },
-   
+
+   /*
     async sendReportViaSupabase(payload) {
         try {
             const { data, error } = await this.supabase
@@ -1437,6 +1438,32 @@ Object.assign(QuizGame.prototype, {
             console.error('Supabase report insert failed:', e);
             return { ok: false, error: String(e) };
         }
+    },
+   */
+   async sendReportViaEdge(payload) {
+     try {
+        const res = await fetch(this.config.EDGE_REPORT_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            // لازم ترسل الـ anon key للمصادقة المعيارية في Edge
+            'Authorization': `Bearer ${this.config.SUPABASE_KEY}`,
+            'apikey': this.config.SUPABASE_KEY,
+            // مفتاح تطبيقك الذي تتحقق منه الدالة
+            'x-app-key': this.config.APP_KEY
+          },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          const txt = await res.text().catch(()=> '');
+          console.error('report edge error:', res.status, txt);
+          return false;
+        }
+        return true;
+      } catch (e) {
+        console.error('report edge fetch failed:', e);
+        return false;
+      }
     },
 
     /* ———————————————— صور رمزية (رفع/قص) ———————————————— */
