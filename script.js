@@ -1445,8 +1445,10 @@ Object.assign(QuizGame.prototype, {
             'Content-Type': 'application/json',
             'x-app-key': this.config.APP_KEY
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
+          referrerPolicy: 'no-referrer'
         });
+
         if (!res.ok) {
           const txt = await res.text().catch(() => '');
           console.error('report edge error:', res.status, txt);
