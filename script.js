@@ -265,31 +265,6 @@ class QuizGame {
         return true;
     }
 
-     bgPost(url, bodyObj) {
-      try {
-        const body = JSON.stringify(bodyObj || {});
-        const urlWithKey = url.includes('?')
-          ? `${url}&k=${encodeURIComponent(this.config.APP_KEY)}`
-          : `${url}?k=${encodeURIComponent(this.config.APP_KEY)}`;
-
-        if (navigator.sendBeacon) {
-          const blob = new Blob([body], { type: 'application/json' });
-          navigator.sendBeacon(urlWithKey, blob);
-          return;
-        }
-
-        // Fallback هادئ بدون Preflight
-        fetch(urlWithKey, {
-          method: 'POST',
-          mode: 'no-cors',
-          credentials: 'omit',
-          headers: { 'Content-Type': 'application/json' },
-          body,
-          keepalive: true
-        }).catch(() => {});
-      } catch (_) {}
-    }
-
     /* ———————————————— معالجة الأخطاء وزر الرجوع ———————————————— */
     setupErrorHandling() {
         window.addEventListener('error', (ev) => {
@@ -1375,123 +1350,105 @@ Object.assign(QuizGame.prototype, {
 
     /* ———————————————— البلاغات ———————————————— */
        handleReportSubmitGuarded(event) {
-        event.preventDefault();
-        const form = event.target;
-        if (form.dataset.busy === '1') return;
-        form.dataset.busy = '1';
-        setTimeout(() => { form.dataset.busy = '0'; }, this.config.CLICK_DEBOUNCE_MS + 300);
+      event.preventDefault();
+      const form = event.target;
+      if (form.dataset.busy === '1') return;
+      form.dataset.busy = '1';
+      setTimeout(() => { form.dataset.busy = '0'; }, this.config.CLICK_DEBOUNCE_MS + 300);
 
-        const formData = new FormData(form);
-        const problemLocation = formData.get('problemLocation');
+      const formData = new FormData(form);
+      const problemLocation = formData.get('problemLocation');
 
-        const reportData = {
-            type: formData.get('problemType'),
-            description: formData.get('problemDescription'),
-            name: this.gameState.name || 'لم يبدأ اللعب',
-            player_id: this.gameState.playerId || 'N/A',
-            question_text: this.dom.questionText?.textContent || 'لا يوجد'
-        };
+      const reportData = {
+        type: formData.get('problemType'),
+        description: formData.get('problemDescription'),
+        name: this.gameState.name || 'لم يبدأ اللعب',
+        player_id: this.gameState.playerId || 'N/A',
+        question_text: this.dom.questionText?.textContent || 'لا يوجد'
+      };
 
-        let meta = null;
-        if (this.dom.includeAutoDiagnostics?.checked) {
-            meta = this.getAutoDiagnostics();
-            meta.locationHint = problemLocation;
-        }
-        const ctx = this.buildQuestionRef();
+      // ✅ تأكيد وجود وصف قبل الإرسال (يتجنب 400 Missing description)
+      if (!reportData.description || String(reportData.description).trim().length === 0) {
+        this.showToast('رجاءً اكتب وصفًا للمشكلة قبل الإرسال.', 'error');
+        return;
+      }
 
-        const idemKey = `report:${this.simpleHash(JSON.stringify({ reportData, ctx }))}`;
-        if (this.idempotency.has(idemKey)) {
-            this.showToast('تم إرسال هذا البلاغ بالفعل.', 'info');
-            this.hideModal('advancedReport');
-            return;
-        }
-        this.idempotency.add(idemKey);
+      let meta = null;
+      if (this.dom.includeAutoDiagnostics?.checked) {
+        meta = this.getAutoDiagnostics();
+        meta.locationHint = problemLocation;
+      }
+      const ctx = this.buildQuestionRef();
 
-        this.showToast('يتم إرسال البلاغ…', 'info');
+      const idemKey = `report:${this.simpleHash(JSON.stringify({ reportData, ctx }))}`;
+      if (this.idempotency.has(idemKey)) {
+        this.showToast('تم إرسال هذا البلاغ بالفعل.', 'info');
         this.hideModal('advancedReport');
+        return;
+      }
+      this.idempotency.add(idemKey);
+    
+      this.showToast('يتم إرسال البلاغ…', 'info');
+      this.hideModal('advancedReport');
 
-        (async () => {
-            try {
-                let image_url = null;
-                const file = this.dom.problemScreenshot?.files?.[0];
-                if (file) {
-                    const fileName = `report_${Date.now()}_${Math.random().toString(36).slice(2)}.${(file.type.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '')}`;
-                    const { data: up, error: upErr } = await this.supabase
-                        .storage.from('reports')
-                        .upload(fileName, file, { contentType: file.type, upsert: true });
-                    if (upErr) throw upErr;
-                    const { data: pub } = this.supabase.storage.from('reports').getPublicUrl(up.path);
-                    image_url = pub?.publicUrl || null;
-                }
-
-                const payload = {
-                    ...reportData,
-                    image_url,
-                    // ✅ كل البيانات الإضافية داخل meta فقط
-                    meta: {
-                        ...(meta || {}),
-                        context: ctx,
-                        device_id: this.gameState?.deviceId || this.getOrSetDeviceId(),
-                        session_id: this.gameState?.sessionId || this.currentSessionId
-                    }
-                };
-
-                // ⛔️ احذف السطر القديم:
-                // this.bgPost(this.config.EDGE_REPORT_URL, payload);
-
-                // ✅ استخدم الحفظ عبر Supabase وانتظر النتيجة
-                const ok = await this.sendReportViaEdge(payload);
-                if (!ok) throw new Error('report edge call failed');
-
-                try {
-                    form.reset();
-                    if (this.dom.reportImagePreview) {
-                        this.dom.reportImagePreview.style.display = 'none';
-                        this.dom.reportImagePreview.querySelector('img').src = '';
-                    }
-                    if (this.dom.problemScreenshot) this.dom.problemScreenshot.value = '';
-                } catch (_) {}
-
-                setTimeout(() => this.showToast('تم إرسال بلاغك. شكرًا لك!', 'success'), 400);
-            } catch (err) {
-                console.error('Report error:', err);
-                this.showToast('تعذّر إرسال البلاغ الآن.', 'error');
-            }
-        })();
-    },
-
-   /*
-    async sendReportViaSupabase(payload) {
+      (async () => {
         try {
-            const { data, error } = await this.supabase
-                .from('reports')               // ✅ اسم الجدول الصحيح
-                .insert([payload])
-                .select('id')
-                .single();
-            if (error) throw error;
-            return { ok: true, id: data?.id || null };
-        } catch (e) {
-            console.error('Supabase report insert failed:', e);
-            return { ok: false, error: String(e) };
+          let image_url = null;
+          const file = this.dom.problemScreenshot?.files?.[0];
+          if (file) {
+            const fileName = `report_${Date.now()}_${Math.random().toString(36).slice(2)}.${(file.type.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '')}`;
+            const { data: up, error: upErr } = await this.supabase
+              .storage.from('reports')
+              .upload(fileName, file, { contentType: file.type, upsert: true });
+            if (upErr) throw upErr;
+            const { data: pub } = this.supabase.storage.from('reports').getPublicUrl(up.path);
+            image_url = pub?.publicUrl || null;
+          }
+
+          const payload = {
+            ...reportData,
+            image_url,
+            meta: {
+              ...(meta || {}),
+              context: ctx,
+              device_id: this.gameState?.deviceId || this.getOrSetDeviceId(),
+              session_id: this.gameState?.sessionId || this.currentSessionId
+            }
+          };
+
+          // لا نستخدم bgPost إطلاقًا.
+          const ok = await this.sendReportViaEdge(payload);
+          if (!ok) throw new Error('report edge call failed');
+
+          try {
+            form.reset();
+            if (this.dom.reportImagePreview) {
+              this.dom.reportImagePreview.style.display = 'none';
+              this.dom.reportImagePreview.querySelector('img').src = '';
+            }
+            if (this.dom.problemScreenshot) this.dom.problemScreenshot.value = '';
+          } catch (_) {}
+
+          setTimeout(() => this.showToast('تم إرسال بلاغك. شكرًا لك!', 'success'), 400);
+        } catch (err) {
+          console.error('Report error:', err);
+          this.showToast('تعذّر إرسال البلاغ الآن.', 'error');
         }
+      })();
     },
-   */
+
    async sendReportViaEdge(payload) {
-     try {
+      try {
         const res = await fetch(this.config.EDGE_REPORT_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            // لازم ترسل الـ anon key للمصادقة المعيارية في Edge
-            'Authorization': `Bearer ${this.config.SUPABASE_KEY}`,
-            'apikey': this.config.SUPABASE_KEY,
-            // مفتاح تطبيقك الذي تتحقق منه الدالة
             'x-app-key': this.config.APP_KEY
           },
           body: JSON.stringify(payload)
         });
         if (!res.ok) {
-          const txt = await res.text().catch(()=> '');
+          const txt = await res.text().catch(() => '');
           console.error('report edge error:', res.status, txt);
           return false;
         }
@@ -1642,18 +1599,21 @@ Object.assign(QuizGame.prototype, {
     },
     simpleHash(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; } return String(Math.abs(h)); },
     async sendClientLog(event = 'log', payload = {}) {
-        try {
-            await fetch(this.config.EDGE_LOG_URL, {
-                method: 'POST',
-                headers: { 'Content-Type':'application/json', 'X-App-Key': this.config.APP_KEY },
-                body: JSON.stringify({
-                    event, payload,
-                    session_id: this.gameState?.sessionId || this.currentSessionId || '',
-                    device_id: this.gameState?.deviceId || this.getOrSetDeviceId(),
-                    time: new Date().toISOString()
-                })
-            });
-        } catch (_) {}
+      try {
+        await fetch(this.config.EDGE_LOG_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-app-key': this.config.APP_KEY
+          },
+          body: JSON.stringify({
+            event, payload,
+            session_id: this.gameState?.sessionId || this.currentSessionId || '',
+            device_id: this.gameState?.deviceId || this.getOrSetDeviceId(),
+            time: new Date().toISOString()
+          })
+        });
+      } catch (_) {}
     },
 
     /* ———————————————— جهاز ومؤقّت تبريد ———————————————— */
