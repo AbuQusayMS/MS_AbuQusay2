@@ -12,12 +12,12 @@ class QuizGame {
     constructor() {
         // إعدادات التطبيق والتكامل
         this.config = {
-            SUPABASE_URL: 'https://qffcnljopolajeufkrah.supabase.co',
-            SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmZmNubGpvcG9sYWpldWZrcmFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNzkzNjMsImV4cCI6MjA3NDY1NTM2M30.0vst_km_pweyF2IslQ24JzMF281oYeaaeIEQM0aKkUg',
-            EDGE_SAVE_URL: 'https://qffcnljopolajeufkrah.functions.supabase.co/saveResult',
-            EDGE_REPORT_URL: 'https://qffcnljopolajeufkrah.functions.supabase.co/report',
-            EDGE_LOG_URL: 'https://qffcnljopolajeufkrah.functions.supabase.co/clientLog',
-            APP_KEY: 'AbuQusay',
+            SUPABASE_URL: 'https://ckbphyndplaihlfdypyi.supabase.co',
+            SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrYnBoeW5kcGxhaWhsZmR5cHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1MjI3MjQsImV4cCI6MjA3NjA5ODcyNH0.waA1ZU5pU3n-d7VHn18MQ8J7qVPT9mz1udKUeEjcydI',
+            EDGE_SAVE_URL: 'https://ckbphyndplaihlfdypyi.supabase.co/functions/v1/saveResult',
+            EDGE_REPORT_URL: 'https://ckbphyndplaihlfdypyi.supabase.co/functions/v1/report',
+            EDGE_LOG_URL: 'https://ckbphyndplaihlfdypyi.supabase.co/functions/v1/clientLog',
+            APP_KEY: 'MS_AbuQusay',
             QUESTIONS_URL: 'https://abuqusayms.github.io/MS_AbuQusay/questions.json',
 
             QUESTION_TIME: 80,
