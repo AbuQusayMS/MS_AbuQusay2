@@ -63,6 +63,23 @@ class QuizGame {
         this.init();
     }
 
+   /* ———— أداة نداء دوال Supabase ———— */
+    edgeFetch(path, payload, { method = 'POST', signal } = {}) {
+      const url = `${this.config.SUPABASE_URL}/functions/v1/${path}`;
+      return fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.config.SUPABASE_KEY}`, // anon key
+          'apikey': this.config.SUPABASE_KEY,
+          'x-app-key': this.config.APP_KEY
+        },
+        body: method === 'POST' ? JSON.stringify(payload || {}) : undefined,
+        referrerPolicy: 'no-referrer',
+        signal
+      });
+    }
+
     /* ———————————————— أدوات DOM ———————————————— */
     cacheDomElements() {
         const byId = (id) => document.getElementById(id);
@@ -325,18 +342,6 @@ class QuizGame {
         this.bindEventListeners();
         this.populateAvatarGrid();
         await this.preloadAudio();
-
-        // إنشاء عميل القاعدة
-        try {
-            if (!window.supabase?.createClient) throw new Error('Supabase lib not loaded');
-            this.supabase = supabase.createClient(this.config.SUPABASE_URL, this.config.SUPABASE_KEY);
-            if (!this.supabase) throw new Error('Supabase client failed to initialize.');
-        } catch (err) {
-            console.error('Error initializing Supabase:', err);
-            this.showToast('خطأ في الاتصال بقاعدة البيانات', 'error');
-            const lt = this.getEl('#loaderText'); if (lt) lt.textContent = 'خطأ في الاتصال بالخادم.';
-            return;
-        }
 
         // إعادة إرسال مؤجّل
         await this.retryFailedSubmissions();
@@ -1102,70 +1107,43 @@ Object.assign(QuizGame.prototype, {
 
     /* ———————————————— حفظ النتيجة ———————————————— */
     async saveResultsToSupabase(resultsData) {
-        const payload = {
-            device_id: resultsData?.device_id || this.getOrSetDeviceId(),
-            session_id: resultsData?.session_id || (this.gameState?.sessionId || this.currentSessionId || this.generateSessionId()),
-            ...resultsData
-        };
+      const payload = {
+        device_id: resultsData?.device_id || this.getOrSetDeviceId(),
+        session_id: resultsData?.session_id || (this.gameState?.sessionId || this.currentSessionId || this.generateSessionId()),
+        ...resultsData
+      };
 
-        const idemKey = `save:${payload.session_id}`;
-        if (this.idempotency.has(idemKey)) return { attemptNumber: null, error: null };
-        this.idempotency.add(idemKey);
+      const idemKey = `save:${payload.session_id}`;
+      if (this.idempotency.has(idemKey)) return { attemptNumber: null, error: null };
+      this.idempotency.add(idemKey);
 
-        const ctrl = new AbortController();
-        ctrl.__skipAbortOnCleanup = true; // لا تُلغى أثناء الـ cleanup
-        this.pendingRequests.add(ctrl);
+      const ctrl = new AbortController();
+      ctrl.__skipAbortOnCleanup = true;
+      this.pendingRequests.add(ctrl);
 
-        const timeoutId = setTimeout(() => {
-            try { ctrl.abort('timeout'); } catch (_) {}
-        }, this.config.REQ_TIMEOUT_MS);
-        this.cleanupQueue.push({ type: 'timeout', id: timeoutId });
+      const timeoutId = setTimeout(() => { try { ctrl.abort('timeout'); } catch(_){} }, this.config.REQ_TIMEOUT_MS);
+      this.cleanupQueue.push({ type: 'timeout', id: timeoutId });
 
-        try {
-            const res = await fetch(this.config.EDGE_SAVE_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-app-key': this.config.APP_KEY },
-                body: JSON.stringify(payload),
-                signal: ctrl.signal
-            });
-
-            if (!res.ok) {
-                let errBody = '';
-                try { errBody = await res.text(); } catch (_) {}
-                throw new Error(`HTTP ${res.status}${errBody ? `: ${errBody}` : ''}`);
-            }
-
-            let json = {};
-            try { json = await res.json(); } catch (_) {}
-
-            this.showToast('تم حفظ نتيجتك بنجاح!', 'success');
-            this.playSound('coin');
-
-            return {
-                attemptNumber: json.attempt_number || json.attemptNumber || null,
-                error: null
-            };
-
-        } catch (error) {
-            // إلغاء بسبب timeout/cleanup لا يُعد فشلاً مزعجاً
-            if (error && (error.name === 'AbortError' || String(error).includes('AbortError'))) {
-                console.warn('Save result aborted (cleanup/timeout). Will queue for retry if needed.');
-            } else {
-                console.error('Failed to save results via Edge Function:', error);
-                this.showToast('فشل إرسال النتائج إلى السيرفر', 'error');
-            }
-
-            // صفّ للإرسال لاحقاً
-            if (typeof this.queueFailedSubmission === 'function') {
-                try { this.queueFailedSubmission(payload); } catch (_) {}
-            }
-
-            return { attemptNumber: null, error: String(error) };
-
-        } finally {
-            clearTimeout(timeoutId);
-            this.pendingRequests.delete(ctrl);
+      try {
+        const res = await this.edgeFetch('saveResult', payload, { method: 'POST', signal: ctrl.signal });
+        if (!res.ok) {
+          const txt = await res.text().catch(()=> '');
+          throw new Error(`HTTP ${res.status}${txt ? `: ${txt}` : ''}`);
         }
+        const json = await res.json().catch(()=> ({}));
+        this.showToast('تم حفظ نتيجتك بنجاح!', 'success');
+        this.playSound('coin');
+        return { attemptNumber: json.attempt_number || json.attemptNumber || null, error: null };
+      } catch (error) {
+        this.showToast('فشل إرسال النتائج إلى السيرفر', 'error');
+        if (typeof this.queueFailedSubmission === 'function') {
+          try { this.queueFailedSubmission(payload); } catch(_) {}
+        }
+        return { attemptNumber: null, error: String(error) };
+      } finally {
+        clearTimeout(timeoutId);
+        this.pendingRequests.delete(ctrl);
+      }
     },
     queueFailedSubmission(data) {
         try {
@@ -1196,76 +1174,56 @@ Object.assign(QuizGame.prototype, {
 
     /* ———————————————— لوحة الصدارة ———————————————— */
     async displayLeaderboard() {
-        this.showScreen('leaderboard');
-        this.dom.leaderboardContent.innerHTML = '<div class="spinner"></div>';
+      this.showScreen('leaderboard');
+      this.dom.leaderboardContent.innerHTML = '<div class="spinner"></div>';
 
-        if (!this.lbFirstOpenDone) { if (this.dom.lbMode) this.dom.lbMode.value = 'all'; this.lbFirstOpenDone = true; }
-        const mode = this.dom.lbMode?.value || 'all';
-        if (this.dom.lbAttempt) this.dom.lbAttempt.disabled = (mode !== 'attempt');
+      if (!this.lbFirstOpenDone) { if (this.dom.lbMode) this.dom.lbMode.value = 'all'; this.lbFirstOpenDone = true; }
+      const mode = this.dom.lbMode?.value || 'all';
+      if (this.dom.lbAttempt) this.dom.lbAttempt.disabled = (mode !== 'attempt');
 
-        try {
-            let rows = [];
-            if (mode === 'attempt') {
-                await this.updateAttemptsFilter();
-                const attemptN = Number(this.dom.lbAttempt?.value || 1);
-                const { data, error } = await this.supabase
-                    .from('log')
-                    .select('*')
-                    .eq('attempt_number', attemptN)
-                    .order('score', { ascending: false })
-                    .order('accuracy', { ascending: false })
-                    .order('total_time', { ascending: true })
-                    .limit(100);
-                if (error) throw error;
-                rows = data || [];
-                if (this.leaderboardSubscription) { this.leaderboardSubscription.unsubscribe(); this.leaderboardSubscription = null; }
-            } else {
-                let query;
-                if (mode === 'all') {
-                    query = this.supabase.from('log').select('*')
-                        .order('score', { ascending: false })
-                        .order('accuracy', { ascending: false })
-                        .order('total_time', { ascending: true });
-                } else {
-                    query = this.supabase.from('leaderboard').select('*');
-                    if (mode === 'accuracy') query = query.order('accuracy', { ascending: false }).order('score', { ascending: false }).order('total_time', { ascending: true });
-                    else if (mode === 'time') query = query.order('total_time', { ascending: true }).order('accuracy', { ascending: false }).order('score', { ascending: false });
-                    else query = query.order('is_impossible_finisher', { ascending: false }).order('score', { ascending: false }).order('accuracy', { ascending: false }).order('total_time', { ascending: true });
-                }
-                const { data, error } = await query.limit(100);
-                if (error) throw error;
-                rows = data || [];
-                if (mode === 'best') {
-                    const seen = new Map();
-                    for (const r of rows) if (!seen.has(r.device_id)) seen.set(r.device_id, r);
-                    rows = [...seen.values()];
-                }
-                if (mode !== 'all') this.subscribeToLeaderboardChanges();
-                else if (this.leaderboardSubscription) { this.leaderboardSubscription.unsubscribe(); this.leaderboardSubscription = null; }
-            }
-            this.renderLeaderboard(rows.slice(0, 50));
-        } catch (e) {
-            console.error('Error loading leaderboard:', e);
-            this.dom.leaderboardContent.innerHTML = '<p>حدث خطأ في تحميل لوحة الصدارة.</p>';
+      try {
+        let rows = [];
+
+        if (mode === 'attempt') {
+          await this.updateAttemptsFilter();
+          const attemptN = Number(this.dom.lbAttempt?.value || 1);
+          const res = await this.edgeFetch('leaderboard', { mode: 'attempt', attempt: attemptN });
+          if (!res.ok) throw new Error('leaderboard attempt failed');
+          rows = await res.json();
+        } else {
+          const res = await this.edgeFetch('leaderboard', { mode });
+          if (!res.ok) throw new Error('leaderboard failed');
+          rows = await res.json();
+          if (mode === 'best') {
+            const seen = new Map();
+            for (const r of rows) if (!seen.has(r.device_id)) seen.set(r.device_id, r);
+            rows = [...seen.values()];
+          }
         }
+
+        this.renderLeaderboard((rows || []).slice(0, 50));
+      } catch (e) {
+        console.error('Error loading leaderboard:', e);
+        this.dom.leaderboardContent.innerHTML = '<p>حدث خطأ في تحميل لوحة الصدارة.</p>';
+      }
     },
     async updateAttemptsFilter() {
-        try {
-            const { data, error } = await this.supabase.from('log').select('attempt_number').order('attempt_number', { ascending: false }).limit(1);
-            if (error) throw error;
-            const maxAttempt = data?.length ? data[0].attempt_number : 1;
-            if (this.dom.lbAttempt) {
-                const prev = this.dom.lbAttempt.value || '';
-                this.dom.lbAttempt.innerHTML = '';
-                for (let i = 1; i <= maxAttempt; i++) {
-                    const opt = document.createElement('option');
-                    opt.value = String(i); opt.textContent = `المحاولة ${i}`;
-                    this.dom.lbAttempt.appendChild(opt);
-                }
-                if (prev && Number(prev) >= 1 && Number(prev) <= maxAttempt) this.dom.lbAttempt.value = String(prev);
-                else this.dom.lbAttempt.value = String(maxAttempt);
-            }
-        } catch (e) { console.error('Error updating attempts filter:', e); }
+      try {
+        const res = await this.edgeFetch('leaderboard', { mode: 'maxAttempt' });
+        if (!res.ok) throw new Error('maxAttempt failed');
+        const { maxAttempt = 1 } = await res.json();
+        if (this.dom.lbAttempt) {
+          const prev = this.dom.lbAttempt.value || '';
+          this.dom.lbAttempt.innerHTML = '';
+          for (let i = 1; i <= maxAttempt; i++) {
+            const opt = document.createElement('option');
+            opt.value = String(i); opt.textContent = `المحاولة ${i}`;
+            this.dom.lbAttempt.appendChild(opt);
+          }
+          if (prev && Number(prev) >= 1 && Number(prev) <= maxAttempt) this.dom.lbAttempt.value = String(prev);
+          else this.dom.lbAttempt.value = String(maxAttempt);
+        }
+      } catch(e) { console.error('Error updating attempts filter:', e); }
     },
     renderLeaderboard(players) {
         if (!players.length) { this.dom.leaderboardContent.innerHTML = '<p>لوحة الصدارة فارغة حاليًا!</p>'; return; }
@@ -1349,7 +1307,7 @@ Object.assign(QuizGame.prototype, {
     getAccuracyBarColor(pct) { const p = Math.max(0, Math.min(100, Number(pct) || 0)); const hue = Math.round((p / 100) * 120); return `hsl(${hue} 70% 45%)`; },
 
     /* ———————————————— البلاغات ———————————————— */
-       handleReportSubmitGuarded(event) {
+    handleReportSubmitGuarded(event) {
       event.preventDefault();
       const form = event.target;
       if (form.dataset.busy === '1') return;
@@ -1367,7 +1325,7 @@ Object.assign(QuizGame.prototype, {
         question_text: this.dom.questionText?.textContent || 'لا يوجد'
       };
 
-      // ✅ تأكيد وجود وصف قبل الإرسال (يتجنب 400 Missing description)
+      // ✅ تأكيد وجود وصف قبل الإرسال
       if (!reportData.description || String(reportData.description).trim().length === 0) {
         this.showToast('رجاءً اكتب وصفًا للمشكلة قبل الإرسال.', 'error');
         return;
@@ -1387,27 +1345,27 @@ Object.assign(QuizGame.prototype, {
         return;
       }
       this.idempotency.add(idemKey);
-    
+
       this.showToast('يتم إرسال البلاغ…', 'info');
       this.hideModal('advancedReport');
 
       (async () => {
         try {
-          let image_url = null;
+          // ——— اجمع الصورة كـ base64 (إن وُجدت) ———
+          let image_base64 = null;
           const file = this.dom.problemScreenshot?.files?.[0];
           if (file) {
-            const fileName = `report_${Date.now()}_${Math.random().toString(36).slice(2)}.${(file.type.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '')}`;
-            const { data: up, error: upErr } = await this.supabase
-              .storage.from('reports')
-              .upload(fileName, file, { contentType: file.type, upsert: true });
-            if (upErr) throw upErr;
-            const { data: pub } = this.supabase.storage.from('reports').getPublicUrl(up.path);
-            image_url = pub?.publicUrl || null;
+            image_base64 = await new Promise((resolve) => {
+              const r = new FileReader();
+              r.onload = () => resolve(String(r.result)); // data:image/...;base64,....
+              r.readAsDataURL(file);
+            });
           }
 
-          const payload = {
+      // ——— حمولة الطلب للدالة ———
+              const payload = {
             ...reportData,
-            image_url,
+            image_base64, // الدالة سترفع وتُرجع رابط الصورة
             meta: {
               ...(meta || {}),
               context: ctx,
@@ -1416,10 +1374,11 @@ Object.assign(QuizGame.prototype, {
             }
           };
 
-          // لا نستخدم bgPost إطلاقًا.
+          // ——— أرسل عبر Edge Function القديمة (URL ثابت) ———
           const ok = await this.sendReportViaEdge(payload);
           if (!ok) throw new Error('report edge call failed');
 
+          // ——— نجاح ———
           try {
             form.reset();
             if (this.dom.reportImagePreview) {
@@ -1430,6 +1389,7 @@ Object.assign(QuizGame.prototype, {
           } catch (_) {}
 
           setTimeout(() => this.showToast('تم إرسال بلاغك. شكرًا لك!', 'success'), 400);
+
         } catch (err) {
           console.error('Report error:', err);
           this.showToast('تعذّر إرسال البلاغ الآن.', 'error');
@@ -1602,18 +1562,11 @@ Object.assign(QuizGame.prototype, {
     simpleHash(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; } return String(Math.abs(h)); },
     async sendClientLog(event = 'log', payload = {}) {
       try {
-        await fetch(this.config.EDGE_LOG_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-app-key': this.config.APP_KEY
-          },
-          body: JSON.stringify({
-            event, payload,
-            session_id: this.gameState?.sessionId || this.currentSessionId || '',
-            device_id: this.gameState?.deviceId || this.getOrSetDeviceId(),
-            time: new Date().toISOString()
-          })
+        await this.edgeFetch('clientLog', {
+          event, payload,
+          session_id: this.gameState?.sessionId || this.currentSessionId || '',
+          device_id: this.gameState?.deviceId || this.getOrSetDeviceId(),
+          time: new Date().toISOString()
         });
       } catch (_) {}
     },
