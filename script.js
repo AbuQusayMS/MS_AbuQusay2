@@ -483,10 +483,11 @@
                 return this.fetchQuestion();
             }
 
-            const totalQuestions = (this.gameState.shuffledQuestions || []).length;
-            this.getEl('#questionCounter')?.textContent = `السؤال ${this.gameState.questionIndex + 1} من ${totalQuestions}`;
-            if (this.dom.questionText) this.dom.questionText.textContent = text;
-            if (!this.dom.optionsGrid) return;
+                const totalQuestions = (this.gameState.shuffledQuestions || []).length;
+                const counterEl = this.getEl('#questionCounter');
+                if (counterEl) counterEl.textContent = `السؤال ${this.gameState.questionIndex + 1} من ${totalQuestions}`;
+                if (this.dom.questionText) this.dom.questionText.textContent = text;
+                if (!this.dom.optionsGrid) return;
 
             this.dom.optionsGrid.innerHTML = '';
 
