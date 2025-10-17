@@ -19,6 +19,7 @@ class QuizGame {
             EDGE_LOG_URL: 'https://ckbphyndplaihlfdypyi.supabase.co/functions/v1/clientLog',
             APP_KEY: 'MS_AbuQusay',
             QUESTIONS_URL: 'https://abuqusayms.github.io/MS_AbuQusay/questions.json',
+            EDGE_LEADERBOARD_URL: 'https://ckbphyndplaihlfdypyi.supabase.co/functions/v1/leaderboard',
 
             QUESTION_TIME: 80,
             MAX_WRONG_ANSWERS: 3,
@@ -1331,8 +1332,10 @@ Object.assign(QuizGame.prototype, {
     /* ———————————————— لوحة الصدارة ———————————————— */
     async displayLeaderboard() {
       this.showScreen('leaderboard');
-      this.dom.leaderboardContent.innerHTML = '<div class="spinner"></div>';
+      const box = this.dom.leaderboardContent;
+      if (box) box.innerHTML = '<div class="spinner"></div>';
 
+      // أول فتح: اضبط الوضع على "all"
       if (!this.lbFirstOpenDone) {
         if (this.dom.lbMode) this.dom.lbMode.value = 'all';
         this.lbFirstOpenDone = true;
@@ -1341,45 +1344,58 @@ Object.assign(QuizGame.prototype, {
       const mode = this.dom.lbMode?.value || 'all';
       if (this.dom.lbAttempt) this.dom.lbAttempt.disabled = (mode !== 'attempt');
 
-      try {
-        let rows = [];
+      // مسار الدالة (خذ EDGE_LEADERBOARD_URL إن وُجد وإلا ابنِه من SUPABASE_URL)
+      const LB_URL =
+        this.config.EDGE_LEADERBOARD_URL ||
+        (this.config.SUPABASE_URL + '/functions/v1/leaderboard');
 
-        const LB_URL = this.config.SUPABASE_URL + '/functions/v1/leaderboard';
+      try {
+        let rows;
 
         if (mode === 'attempt') {
+          // حدّث قائمة المحاولات أولًا
           await this.updateAttemptsFilter();
           const attemptN = Number(this.dom.lbAttempt?.value || 1);
           rows = await this._postJson(LB_URL, { mode: 'attempt', attempt: attemptN });
         } else {
-          rows = await this._postJson(LB_URL, { mode }); // تُعيد JSON جاهز
+          rows = await this._postJson(LB_URL, { mode }); // تُعيد Array جاهزة
           if (mode === 'best') {
-            // إبقاء أفضل نتيجة لكل جهاز
+            // احتفظ بأفضل صف لكل device_id
             const seen = new Map();
-            for (const r of rows) if (!seen.has(r.device_id)) seen.set(r.device_id, r);
-            rows = [...seen.values()];
+            const uniq = [];
+            for (const r of rows || []) {
+              if (!seen.has(r.device_id)) { seen.set(r.device_id, true); uniq.push(r); }
+            }
+            rows = uniq;
           }
         }
 
         this.renderLeaderboard((rows || []).slice(0, 50));
       } catch (e) {
         console.error('Error loading leaderboard:', e);
-        this.dom.leaderboardContent.innerHTML = '<p>حدث خطأ في تحميل لوحة الصدارة.</p>';
+        if (box) box.innerHTML = '<p>حدث خطأ في تحميل لوحة الصدارة.</p>';
       }
-    },
+    }
+
     async updateAttemptsFilter() {
+      const LB_URL =
+        this.config.EDGE_LEADERBOARD_URL ||
+        (this.config.SUPABASE_URL + '/functions/v1/leaderboard');
+
       try {
-        const LB_URL = this.config.SUPABASE_URL + '/functions/v1/leaderboard';
         const { maxAttempt = 1 } = await this._postJson(LB_URL, { mode: 'maxAttempt' });
 
         if (this.dom.lbAttempt) {
           const prev = this.dom.lbAttempt.value || '';
           this.dom.lbAttempt.innerHTML = '';
+
           for (let i = 1; i <= maxAttempt; i++) {
             const opt = document.createElement('option');
             opt.value = String(i);
             opt.textContent = `المحاولة ${i}`;
             this.dom.lbAttempt.appendChild(opt);
           }
+
           if (prev && Number(prev) >= 1 && Number(prev) <= maxAttempt) {
             this.dom.lbAttempt.value = String(prev);
           } else {
@@ -1389,7 +1405,8 @@ Object.assign(QuizGame.prototype, {
       } catch (e) {
         console.error('Error updating attempts filter:', e);
       }
-    },
+    }
+   
     renderLeaderboard(players) {
         if (!players.length) { this.dom.leaderboardContent.innerHTML = '<p>لوحة الصدارة فارغة حاليًا!</p>'; return; }
         const list = document.createElement('ul'); list.className = 'leaderboard-list';
