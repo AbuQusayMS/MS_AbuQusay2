@@ -449,7 +449,8 @@
             const currentLevel = this.config.LEVELS[this.gameState.level];
             this.gameState.helpersUsed = { fiftyFifty: false, freezeTime: false };
             document.body.dataset.level = currentLevel.name;
-            this.getEl('#currentLevelBadge')?.textContent = currentLevel.label;
+            const badge = this.getEl('#currentLevelBadge');
+            if (badge) badge.textContent = currentLevel.label;
 
             const levelQuestions = this.getLevelQuestions(currentLevel.name);
             if (levelQuestions.length > 0) {
