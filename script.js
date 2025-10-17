@@ -40,7 +40,6 @@ class QuizGame {
         };
 
         // حالة داخلية
-        this.supabase = null;
         this.questions = {};
         this.gameState = {};
         this.timer = { interval: null, isFrozen: false, total: 0 };
@@ -61,23 +60,6 @@ class QuizGame {
         this.setupErrorHandling();
         this.setupBackButtonHandler();
         this.init();
-    }
-
-   /* ———— أداة نداء دوال Supabase ———— */
-    edgeFetch(path, payload, { method = 'POST', signal } = {}) {
-      const url = `${this.config.SUPABASE_URL}/functions/v1/${path}`;
-      return fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.config.SUPABASE_KEY}`, // anon key
-          'apikey': this.config.SUPABASE_KEY,
-          'x-app-key': this.config.APP_KEY
-        },
-        body: method === 'POST' ? JSON.stringify(payload || {}) : undefined,
-        referrerPolicy: 'no-referrer',
-        signal
-      });
     }
 
     /* ———————————————— أدوات DOM ———————————————— */
@@ -1021,15 +1003,7 @@ Object.assign(QuizGame.prototype, {
     },
     ratePerformance: async function (current) {
         let history = [];
-        try {
-            const { data, error } = await this.supabase
-                .from('log')
-                .select('accuracy,avg_time,score,correct_answers,wrong_answers,skips,completed_all,level,created_at')
-                .eq('device_id', current.device_id)
-                .order('created_at', { ascending: false })
-                .limit(20);
-            if (!error && Array.isArray(data)) history = data;
-        } catch (_) {}
+       
         const histAcc = history.map(h => Number(h.accuracy || 0)).filter(n => n >= 0);
         const histAvg = history.map(h => Number(h.avg_time || 0)).filter(n => n >= 0);
         const histDone = history.filter(h => h.completed_all === true).length;
@@ -1090,6 +1064,255 @@ Object.assign(QuizGame.prototype, {
    ========================================================= */
 
 Object.assign(QuizGame.prototype, {
+       /* ————————————————————————————————
+       طبقة إرسال جديدة موحّدة (نتائج/سجل/بلاغات)
+       ———————————————————————————————— */
+
+    /* مفاتيح وإعدادات الإرسال */
+    _tx: {
+        timeoutMs: 10000,
+        maxRetries: 2,          // إعادة محاولة عند الأعطال الشبكية/5xx
+        queueKey: 'bgQueue:v2', // طابور محلي للطلبات الفاشلة
+        busy: new Set(),        // لمنع التكرار حسب idempotencyKey
+    },
+
+    /* مولّد مفتاح عدم التكرار */
+    _mkIdemKey(kind, payload) {
+        const raw = `${kind}:${JSON.stringify(payload)}:${this.gameState?.sessionId || this.currentSessionId}`;
+        return `idem:${this.simpleHash(raw)}`;
+    },
+
+    /* أداة إرسال JSON مع مهلة + إعادة محاولة + Idempotency */
+    async _postJson(url, body, { timeoutMs = this._tx.timeoutMs, retries = this._tx.maxRetries, idempotencyKey } = {}) {
+        const headers = {
+            'Content-Type': 'application/json',
+            'x-app-key': this.config.APP_KEY
+        };
+        // if (this.config.SUPABASE_KEY) headers['apikey'] = this.config.SUPABASE_KEY;
+
+        if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+        const controller = new AbortController();
+        const t = setTimeout(() => { try { controller.abort('timeout'); } catch(_){} }, timeoutMs);
+
+        const attempt = async () => {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(body || {}),
+                referrerPolicy: 'no-referrer',
+                signal: controller.signal
+            });
+            const text = await res.text().catch(()=> '');
+            let json = {};
+            try { json = text ? JSON.parse(text) : {}; } catch(_) {}
+            if (!res.ok) {
+                const err = new Error(`HTTP ${res.status}${text ? `: ${text}` : ''}`);
+                err.status = res.status;
+                err.body = text;
+                throw err;
+            }
+            return json;
+        };
+
+        try {
+            let lastErr = null;
+            for (let i = 0; i <= retries; i++) {
+                try { return await attempt(); }
+                catch (e) {
+                    lastErr = e;
+                    const retriable = (e.name === 'AbortError') || !navigator.onLine || (e.status >= 500);
+                    if (!retriable || i === retries) throw e;
+                    await new Promise(r => setTimeout(r, 400 * (i + 1)));
+                }
+            }
+            throw lastErr || new Error('unknown error');
+        } finally {
+            clearTimeout(t);
+        }
+    },
+
+    /* طابور محلي خفيف لإعادة المحاولة لاحقًا */
+    _queuePush(item) {
+        try {
+            const list = JSON.parse(localStorage.getItem(this._tx.queueKey) || '[]');
+            list.push({ ...item, ts: Date.now() });
+            localStorage.setItem(this._tx.queueKey, JSON.stringify(list.slice(-25)));
+        } catch(_) {}
+    },
+    async _queueDrain() {
+        let list = [];
+        try { list = JSON.parse(localStorage.getItem(this._tx.queueKey) || '[]'); } catch(_) { list = []; }
+        if (!list.length) return;
+
+        const remain = [];
+        for (const it of list) {
+            try {
+                if (it.kind === 'result')      { await this.saveResultsToSupabase(it.payload, { skipQueue: true }); }
+                else if (it.kind === 'log')    { await this.sendClientLog(it.payload.event, it.payload.data, { skipQueue: true }); }
+                else if (it.kind === 'report') { await this._sendReport(it.payload, { skipQueue: true }); }
+                else remain.push(it);
+            } catch(_) { remain.push(it); }
+        }
+        try { localStorage.setItem(this._tx.queueKey, JSON.stringify(remain.slice(-25))); } catch(_) {}
+    },
+
+    /* استدعِ تصريف الطابور عند الإقلاع والعودة أونلاين */
+    async retryFailedSubmissions() { await this._queueDrain(); },
+    _bindOnlineOnce: (() => {
+        let bound = false;
+        return () => {
+            if (bound) return;
+            bound = true;
+            window.addEventListener('online', () => { this._queueDrain(); });
+        };
+    })(),
+
+    /* ———————————————— حفظ النتيجة ———————————————— */
+    async saveResultsToSupabase(resultsData, opts = {}) {
+        const payload = {
+            device_id: resultsData?.device_id || this.getOrSetDeviceId(),
+            session_id: resultsData?.session_id || (this.gameState?.sessionId || this.currentSessionId || this.generateSessionId()),
+            ...resultsData
+        };
+
+        const idem = this._mkIdemKey('result', { session_id: payload.session_id, score: payload.score });
+        if (this._tx.busy.has(idem)) return { attemptNumber: null, error: null };
+        this._tx.busy.add(idem);
+
+        try {
+            const json = await this._postJson(this.config.EDGE_SAVE_URL, payload, { idempotencyKey: idem });
+            const attemptNumber = json.attempt_number || json.attemptNumber || null;
+            return { attemptNumber, error: null };
+        } catch (error) {
+            if (!opts.skipQueue) this._queuePush({ kind: 'result', payload });
+            return { attemptNumber: null, error: String(error && error.message || error) };
+        } finally {
+            this._tx.busy.delete(idem);
+            this._bindOnlineOnce();
+        }
+    },
+
+    /* ———————————————— سجل العميل ———————————————— */
+    async sendClientLog(event = 'log', payload = {}, opts = {}) {
+        const body = {
+            event,
+            payload,
+            session_id: this.gameState?.sessionId || this.currentSessionId || '',
+            device_id: this.gameState?.deviceId || this.getOrSetDeviceId(),
+            time: new Date().toISOString()
+        };
+
+        const idem = this._mkIdemKey('log', { event, time: body.time, session_id: body.session_id });
+        if (this._tx.busy.has(idem)) return { ok: true };
+        this._tx.busy.add(idem);
+
+        try {
+            await this._postJson(this.config.EDGE_LOG_URL, body, { idempotencyKey: idem, timeoutMs: 6000 });
+            return { ok: true };
+        } catch (error) {
+            if (!opts.skipQueue) this._queuePush({ kind: 'log', payload: { event, data: body } });
+            return { ok: false, error: String(error && error.message || error) };
+        } finally {
+            this._tx.busy.delete(idem);
+            this._bindOnlineOnce();
+        }
+    },
+
+    /* ———————————————— إرسال البلاغات (مع/بدون صورة) ———————————————— */
+    async _sendReport(payload, opts = {}) {
+        const idem = this._mkIdemKey('report', { h: this.simpleHash(JSON.stringify(payload || {})) });
+        if (this._tx.busy.has(idem)) return { ok: true };
+        this._tx.busy.add(idem);
+
+        try {
+            await this._postJson(this.config.EDGE_REPORT_URL, payload, { idempotencyKey: idem });
+            return { ok: true };
+        } catch (error) {
+            if (!opts.skipQueue) this._queuePush({ kind: 'report', payload });
+            return { ok: false, error: String(error && error.message || error) };
+        } finally {
+            this._tx.busy.delete(idem);
+            this._bindOnlineOnce();
+        }
+    },
+
+    /* ———————————————— نموذج البلاغ (مُعاد البناء) ———————————————— */
+    handleReportSubmitGuarded(event) {
+        event.preventDefault();
+        const form = event.target;
+        if (form.dataset.busy === '1') return;
+        form.dataset.busy = '1';
+        setTimeout(() => { form.dataset.busy = '0'; }, this.config.CLICK_DEBOUNCE_MS + 300);
+
+        const formData = new FormData(form);
+        const problemLocation = formData.get('problemLocation');
+
+        const reportData = {
+            type: formData.get('problemType'),
+            description: String(formData.get('problemDescription') || '').trim(),
+            name: this.gameState.name || 'لم يبدأ اللعب',
+            player_id: this.gameState.playerId || 'N/A',
+            question_text: this.dom.questionText?.textContent || 'لا يوجد'
+        };
+
+        if (!reportData.description) {
+            this.showToast('رجاءً اكتب وصفًا للمشكلة قبل الإرسال.', 'error');
+            return;
+        }
+
+        let meta = null;
+        if (this.dom.includeAutoDiagnostics?.checked) {
+            meta = this.getAutoDiagnostics();
+            meta.locationHint = problemLocation;
+        }
+        const ctx = this.buildQuestionRef();
+
+        this.showToast('يتم إرسال البلاغ…', 'info');
+        this.hideModal('advancedReport');
+
+        (async () => {
+            try {
+                let image_base64 = null;
+                const file = this.dom.problemScreenshot?.files?.[0];
+                if (file) {
+                    image_base64 = await new Promise((resolve) => {
+                        const r = new FileReader();
+                        r.onload = () => resolve(String(r.result));
+                        r.readAsDataURL(file);
+                    });
+                }
+
+                const payload = {
+                    ...reportData,
+                    image_base64,
+                    meta: {
+                        ...(meta || {}),
+                        context: ctx,
+                        device_id: this.gameState?.deviceId || this.getOrSetDeviceId(),
+                        session_id: this.gameState?.sessionId || this.currentSessionId
+                    }
+                };
+
+                const res = await this._sendReport(payload);
+                if (!res.ok) throw new Error(res.error || 'report failed');
+
+                try {
+                    form.reset();
+                    if (this.dom.reportImagePreview) {
+                        this.dom.reportImagePreview.style.display = 'none';
+                        this.dom.reportImagePreview.querySelector('img').src = '';
+                    }
+                    if (this.dom.problemScreenshot) this.dom.problemScreenshot.value = '';
+                } catch(_) {}
+
+                setTimeout(() => this.showToast('تم إرسال بلاغك. شكرًا لك!', 'success'), 300);
+            } catch (err) {
+                console.error('Report error:', err);
+                this.showToast('تعذّر إرسال البلاغ الآن. سنحاول لاحقًا تلقائيًا.', 'error');
+            }
+        })();
+    },
+
     /* ———————————————— تحميل الأسئلة ———————————————— */
     async loadQuestions() {
         try {
@@ -1105,96 +1328,32 @@ Object.assign(QuizGame.prototype, {
         }
     },
 
-    /* ———————————————— حفظ النتيجة ———————————————— */
-    async saveResultsToSupabase(resultsData) {
-      const payload = {
-        device_id: resultsData?.device_id || this.getOrSetDeviceId(),
-        session_id: resultsData?.session_id || (this.gameState?.sessionId || this.currentSessionId || this.generateSessionId()),
-        ...resultsData
-      };
-
-      const idemKey = `save:${payload.session_id}`;
-      if (this.idempotency.has(idemKey)) return { attemptNumber: null, error: null };
-      this.idempotency.add(idemKey);
-
-      const ctrl = new AbortController();
-      ctrl.__skipAbortOnCleanup = true;
-      this.pendingRequests.add(ctrl);
-
-      const timeoutId = setTimeout(() => { try { ctrl.abort('timeout'); } catch(_){} }, this.config.REQ_TIMEOUT_MS);
-      this.cleanupQueue.push({ type: 'timeout', id: timeoutId });
-
-      try {
-        const res = await this.edgeFetch('saveResult', payload, { method: 'POST', signal: ctrl.signal });
-        if (!res.ok) {
-          const txt = await res.text().catch(()=> '');
-          throw new Error(`HTTP ${res.status}${txt ? `: ${txt}` : ''}`);
-        }
-        const json = await res.json().catch(()=> ({}));
-        this.showToast('تم حفظ نتيجتك بنجاح!', 'success');
-        this.playSound('coin');
-        return { attemptNumber: json.attempt_number || json.attemptNumber || null, error: null };
-      } catch (error) {
-        this.showToast('فشل إرسال النتائج إلى السيرفر', 'error');
-        if (typeof this.queueFailedSubmission === 'function') {
-          try { this.queueFailedSubmission(payload); } catch(_) {}
-        }
-        return { attemptNumber: null, error: String(error) };
-      } finally {
-        clearTimeout(timeoutId);
-        this.pendingRequests.delete(ctrl);
-      }
-    },
-    queueFailedSubmission(data) {
-        try {
-            const list = JSON.parse(localStorage.getItem('failedSubmissions') || '[]');
-            list.push({ data, timestamp: new Date().toISOString(), type: 'gameResult' });
-            localStorage.setItem('failedSubmissions', JSON.stringify(list.slice(-10)));
-        } catch (e) { console.error('Failed to queue submission:', e); }
-    },
-    async retryFailedSubmissions() {
-        try {
-            const list = JSON.parse(localStorage.getItem('failedSubmissions') || '[]');
-            if (!list.length) return;
-            const okList = [];
-            for (const sub of list) {
-                try {
-                    if (sub.type === 'gameResult') {
-                        const res = await this.saveResultsToSupabase(sub.data);
-                        if (!res.error) okList.push(sub);
-                    }
-                } catch (e) { console.error('Retry failed:', e); }
-            }
-            if (okList.length) {
-                const remaining = list.filter(s => !okList.includes(s));
-                localStorage.setItem('failedSubmissions', JSON.stringify(remaining));
-            }
-        } catch (e) { console.error('Error retrying submissions:', e); }
-    },
-
     /* ———————————————— لوحة الصدارة ———————————————— */
     async displayLeaderboard() {
       this.showScreen('leaderboard');
       this.dom.leaderboardContent.innerHTML = '<div class="spinner"></div>';
 
-      if (!this.lbFirstOpenDone) { if (this.dom.lbMode) this.dom.lbMode.value = 'all'; this.lbFirstOpenDone = true; }
+      if (!this.lbFirstOpenDone) {
+        if (this.dom.lbMode) this.dom.lbMode.value = 'all';
+        this.lbFirstOpenDone = true;
+      }
+
       const mode = this.dom.lbMode?.value || 'all';
       if (this.dom.lbAttempt) this.dom.lbAttempt.disabled = (mode !== 'attempt');
 
       try {
         let rows = [];
 
+        const LB_URL = this.config.SUPABASE_URL + '/functions/v1/leaderboard';
+
         if (mode === 'attempt') {
           await this.updateAttemptsFilter();
           const attemptN = Number(this.dom.lbAttempt?.value || 1);
-          const res = await this.edgeFetch('leaderboard', { mode: 'attempt', attempt: attemptN });
-          if (!res.ok) throw new Error('leaderboard attempt failed');
-          rows = await res.json();
+          rows = await this._postJson(LB_URL, { mode: 'attempt', attempt: attemptN });
         } else {
-          const res = await this.edgeFetch('leaderboard', { mode });
-          if (!res.ok) throw new Error('leaderboard failed');
-          rows = await res.json();
+          rows = await this._postJson(LB_URL, { mode }); // تُعيد JSON جاهز
           if (mode === 'best') {
+            // إبقاء أفضل نتيجة لكل جهاز
             const seen = new Map();
             for (const r of rows) if (!seen.has(r.device_id)) seen.set(r.device_id, r);
             rows = [...seen.values()];
@@ -1209,21 +1368,27 @@ Object.assign(QuizGame.prototype, {
     },
     async updateAttemptsFilter() {
       try {
-        const res = await this.edgeFetch('leaderboard', { mode: 'maxAttempt' });
-        if (!res.ok) throw new Error('maxAttempt failed');
-        const { maxAttempt = 1 } = await res.json();
+        const LB_URL = this.config.SUPABASE_URL + '/functions/v1/leaderboard';
+        const { maxAttempt = 1 } = await this._postJson(LB_URL, { mode: 'maxAttempt' });
+
         if (this.dom.lbAttempt) {
           const prev = this.dom.lbAttempt.value || '';
           this.dom.lbAttempt.innerHTML = '';
           for (let i = 1; i <= maxAttempt; i++) {
             const opt = document.createElement('option');
-            opt.value = String(i); opt.textContent = `المحاولة ${i}`;
+            opt.value = String(i);
+            opt.textContent = `المحاولة ${i}`;
             this.dom.lbAttempt.appendChild(opt);
           }
-          if (prev && Number(prev) >= 1 && Number(prev) <= maxAttempt) this.dom.lbAttempt.value = String(prev);
-          else this.dom.lbAttempt.value = String(maxAttempt);
+          if (prev && Number(prev) >= 1 && Number(prev) <= maxAttempt) {
+            this.dom.lbAttempt.value = String(prev);
+          } else {
+            this.dom.lbAttempt.value = String(maxAttempt);
+          }
         }
-      } catch(e) { console.error('Error updating attempts filter:', e); }
+      } catch (e) {
+        console.error('Error updating attempts filter:', e);
+      }
     },
     renderLeaderboard(players) {
         if (!players.length) { this.dom.leaderboardContent.innerHTML = '<p>لوحة الصدارة فارغة حاليًا!</p>'; return; }
@@ -1246,13 +1411,6 @@ Object.assign(QuizGame.prototype, {
         });
         this.dom.leaderboardContent.innerHTML = '';
         this.dom.leaderboardContent.appendChild(list);
-    },
-    subscribeToLeaderboardChanges() {
-        if (this.leaderboardSubscription) this.leaderboardSubscription.unsubscribe();
-        this.leaderboardSubscription = this.supabase
-            .channel('public:leaderboard')
-            .on('postgres_changes', { event:'*', schema:'public', table:'leaderboard' }, () => this.displayLeaderboard())
-            .subscribe();
     },
 
     /* ———————————————— تفاصيل اللاعب ———————————————— */
@@ -1305,121 +1463,6 @@ Object.assign(QuizGame.prototype, {
         this.showModal('playerDetails');
     },
     getAccuracyBarColor(pct) { const p = Math.max(0, Math.min(100, Number(pct) || 0)); const hue = Math.round((p / 100) * 120); return `hsl(${hue} 70% 45%)`; },
-
-    /* ———————————————— البلاغات ———————————————— */
-    handleReportSubmitGuarded(event) {
-      event.preventDefault();
-      const form = event.target;
-      if (form.dataset.busy === '1') return;
-      form.dataset.busy = '1';
-      setTimeout(() => { form.dataset.busy = '0'; }, this.config.CLICK_DEBOUNCE_MS + 300);
-
-      const formData = new FormData(form);
-      const problemLocation = formData.get('problemLocation');
-
-      const reportData = {
-        type: formData.get('problemType'),
-        description: formData.get('problemDescription'),
-        name: this.gameState.name || 'لم يبدأ اللعب',
-        player_id: this.gameState.playerId || 'N/A',
-        question_text: this.dom.questionText?.textContent || 'لا يوجد'
-      };
-
-      // ✅ تأكيد وجود وصف قبل الإرسال
-      if (!reportData.description || String(reportData.description).trim().length === 0) {
-        this.showToast('رجاءً اكتب وصفًا للمشكلة قبل الإرسال.', 'error');
-        return;
-      }
-
-      let meta = null;
-      if (this.dom.includeAutoDiagnostics?.checked) {
-        meta = this.getAutoDiagnostics();
-        meta.locationHint = problemLocation;
-      }
-      const ctx = this.buildQuestionRef();
-
-      const idemKey = `report:${this.simpleHash(JSON.stringify({ reportData, ctx }))}`;
-      if (this.idempotency.has(idemKey)) {
-        this.showToast('تم إرسال هذا البلاغ بالفعل.', 'info');
-        this.hideModal('advancedReport');
-        return;
-      }
-      this.idempotency.add(idemKey);
-
-      this.showToast('يتم إرسال البلاغ…', 'info');
-      this.hideModal('advancedReport');
-
-      (async () => {
-        try {
-          // ——— اجمع الصورة كـ base64 (إن وُجدت) ———
-          let image_base64 = null;
-          const file = this.dom.problemScreenshot?.files?.[0];
-          if (file) {
-            image_base64 = await new Promise((resolve) => {
-              const r = new FileReader();
-              r.onload = () => resolve(String(r.result)); // data:image/...;base64,....
-              r.readAsDataURL(file);
-            });
-          }
-
-      // ——— حمولة الطلب للدالة ———
-              const payload = {
-            ...reportData,
-            image_base64, // الدالة سترفع وتُرجع رابط الصورة
-            meta: {
-              ...(meta || {}),
-              context: ctx,
-              device_id: this.gameState?.deviceId || this.getOrSetDeviceId(),
-              session_id: this.gameState?.sessionId || this.currentSessionId
-            }
-          };
-
-          // ——— أرسل عبر Edge Function القديمة (URL ثابت) ———
-          const ok = await this.sendReportViaEdge(payload);
-          if (!ok) throw new Error('report edge call failed');
-
-          // ——— نجاح ———
-          try {
-            form.reset();
-            if (this.dom.reportImagePreview) {
-              this.dom.reportImagePreview.style.display = 'none';
-              this.dom.reportImagePreview.querySelector('img').src = '';
-            }
-            if (this.dom.problemScreenshot) this.dom.problemScreenshot.value = '';
-          } catch (_) {}
-
-          setTimeout(() => this.showToast('تم إرسال بلاغك. شكرًا لك!', 'success'), 400);
-
-        } catch (err) {
-          console.error('Report error:', err);
-          this.showToast('تعذّر إرسال البلاغ الآن.', 'error');
-        }
-      })();
-    },
-
-   async sendReportViaEdge(payload) {
-      try {
-        const res = await fetch(this.config.EDGE_REPORT_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-app-key': this.config.APP_KEY
-          },
-          body: JSON.stringify(payload),
-          referrerPolicy: 'no-referrer'
-        });
-
-        if (!res.ok) {
-          const txt = await res.text().catch(() => '');
-          console.error('report edge error:', res.status, txt);
-          return false;
-        }
-        return true;
-      } catch (e) {
-        console.error('report edge fetch failed:', e);
-        return false;
-      }
-    },
 
     /* ———————————————— صور رمزية (رفع/قص) ———————————————— */
     populateAvatarGrid() {
@@ -1560,16 +1603,6 @@ Object.assign(QuizGame.prototype, {
         return { level_name: levelName, level_label: levelLabel, question_index: qIndex1, total_questions: total, question_text: qText, options, ref: `${levelName}:${qIndex1}:${hash.slice(0,6)}` };
     },
     simpleHash(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; } return String(Math.abs(h)); },
-    async sendClientLog(event = 'log', payload = {}) {
-      try {
-        await this.edgeFetch('clientLog', {
-          event, payload,
-          session_id: this.gameState?.sessionId || this.currentSessionId || '',
-          device_id: this.gameState?.deviceId || this.getOrSetDeviceId(),
-          time: new Date().toISOString()
-        });
-      } catch (_) {}
-    },
 
     /* ———————————————— جهاز ومؤقّت تبريد ———————————————— */
     getOrSetDeviceId() {
