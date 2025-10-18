@@ -40,9 +40,9 @@
   }
   </script>
 </head>
-<body data-theme="dark" style="overflow-x: hidden; -webkit-overflow-scrolling: touch;">
+<body data-theme="dark" data-level="easy" style="overflow-x: hidden; -webkit-overflow-scrolling: touch;">
   <noscript>
-    <div style="text-align: center; padding: 2rem; font-family: Cairo, sans-serif;">
+    <div style="text-align: center; padding: 1rem; font-family: Cairo, sans-serif;">
       <h2>⚠️ تفعيل JavaScript مطلوب</h2>
       <p>هذه اللعبة تتطلب تفعيل JavaScript لتشغيلها بشكل صحيح.</p>
     </div>
@@ -101,7 +101,9 @@
         <h2>👤 اختر صورتك الرمزية</h2>
         <p class="screen-subtitle">يمكنك اختيار صورة افتراضية أو رفع صورة شخصية</p>
       </header>
-      <div class="avatar-grid" role="group" aria-label="خيارات الصور الرمزية"></div>
+      <div class="avatar-grid" role="group" aria-label="خيارات الصور الرمزية">
+        <!-- سيتم تعبئته ديناميكياً -->
+      </div>
       <div class="button-group">
         <button id="confirmAvatarBtn" class="btn-main" disabled data-action="showNameEntryScreen">
           <span class="btn-content">التالي</span>
@@ -311,7 +313,9 @@
       </section>
       
       <section class="options-container">
-        <div class="options-grid" role="group" aria-label="خيارات الإجابة"></div>
+        <div class="options-grid" role="group" aria-label="خيارات الإجابة">
+          <!-- سيتم تعبئته ديناميكياً -->
+        </div>
       </section>
     </div>
   </main>
