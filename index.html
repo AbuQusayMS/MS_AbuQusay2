@@ -1,21 +1,15 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl" class="fonts-loading">
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="مسابقة معلومات تفاعلية لاختبار ثقافتك في مستويات متعددة.">
   <title>🧠 مسابقة المعلومات | Hybrid Edition</title>
 
-  <!-- Preload محسن مع crossorigin -->
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" as="style" crossorigin="anonymous">
-  <link rel="preload" href="style.css" as="style">
-  
-  <link rel="icon" type="image/png" href="https://em-content.zobj.net/thumbs/120/apple/354/brain_1f9e0.png" loading="eager">
+  <link rel="icon" type="image/png" href="https://em-content.zobj.net/thumbs/120/apple/354/brain_1f9e0.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
-  
-  <!-- تحميل الخطوط مع crossorigin -->
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet" crossorigin="anonymous">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
 
   <!-- Cropper.js CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
@@ -33,100 +27,14 @@
     "author": { "@type": "Person", "name": "MS AbuQusay" }
   }
   </script>
-  
-  <!-- Inline critical CSS -->
-  <style>
-    /* Critical CSS for initial render */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: #1a1a2e;
-      color: #f0f0f0;
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
-    
-    .screen { 
-      position: fixed;
-      inset: 0;
-      display: none;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      padding: 1rem;
-      opacity: 0;
-      transition: opacity 0.3s ease-in-out;
-      z-index: 1;
-    }
-    
-    .screen.active { 
-      display: flex;
-      opacity: 1;
-      z-index: 10;
-    }
-    
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-    
-    .content-box {
-      background: #16213e;
-      border-radius: 1rem;
-      padding: 2rem;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-      width: 90%;
-      max-width: 500px;
-      margin: 0 auto;
-      border: 1px solid #374151;
-    }
-    
-    .spinner {
-      width: 2.5rem;
-      height: 2.5rem;
-      border: 4px solid #0f3460;
-      border-top: 4px solid #ffd700;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto;
-    }
-    
-    @keyframes spin {
-      100% { transform: rotate(360deg); }
-    }
-    
-    .fonts-loaded body {
-      font-family: 'Cairo', system-ui, sans-serif;
-    }
-  </style>
 </head>
 <body data-theme="dark">
-  <noscript>
-    <div class="screen active" style="text-align: center; padding: 2rem; background: #f8d7da; color: #721c24; border-radius: 0.5rem; margin: 2rem;">
-      <h2>⚠️ JavaScript مطلوب</h2>
-      <p>هذه اللعبة تتطلب تفعيل JavaScript. يرجى تمكينه في متصفحك.</p>
-    </div>
-  </noscript>
+  <noscript>هذه اللعبة تتطلب تفعيل JavaScript.</noscript>
 
   <div id="toast-container" class="toast-container" aria-live="assertive"></div>
 
-  <!-- زر الإبلاغ عن مشكلة -->
-  <button id="reportErrorFab" class="report-fab" role="button" aria-label="الإبلاغ عن مشكلة" tabindex="0" style="display: none;">
-    <span aria-hidden="true">⚠️</span>
-    <span class="sr-only">الإبلاغ عن مشكلة</span>
-  </button>
+  <!-- ✅ إصلاح العنصر المكسور -->
+  <div id="reportErrorFab" class="report-fab" role="button" aria-label="الإبلاغ عن مشكلة">⚠️</div>
 
   <!-- SCREENS -->
   <div id="loader" class="screen active" role="status" aria-label="جاري التحميل">
@@ -141,135 +49,106 @@
         <p class="game-subtitle">اختبر قدراتك في مسابقة تفاعلية شيقة</p>
       </header>
       <div class="button-group">
-        <button id="startBtn" class="btn-main" data-action="showAvatarScreen" aria-describedby="startDesc">
-          ابدأ اللعب
-        </button>
-        <button id="leaderboardBtn" class="btn-secondary" data-action="showLeaderboard" aria-describedby="leaderboardDesc">
-          لوحة الصدارة
-        </button>
-        
-        <span id="startDesc" class="sr-only">بدء لعبة مسابقة المعلومات التفاعلية</span>
-        <span id="leaderboardDesc" class="sr-only">عرض أفضل النتائج واللاعبين</span>
+        <button id="startBtn" class="btn-main" data-action="showAvatarScreen">ابدأ اللعب</button>
+        <button data-action="showLeaderboard" class="btn-secondary">لوحة الصدارة</button>
       </div>
     </div>
   </div>
 
   <div id="avatarScreen" class="screen">
     <div class="content-box">
-      <header class="screen-header">
-        <h2>اختر صورتك الرمزية</h2>
-      </header>
-      <div id="avatarGrid" class="avatar-grid" role="radiogroup" aria-label="خيارات الصور الرمزية" aria-required="true"></div>
+      <header class="screen-header"><h2>اختر صورتك الرمزية</h2></header>
+      <div class="avatar-grid" role="group" aria-label="خيارات الصور الرمزية"></div>
       <div class="button-group">
-        <button id="confirmAvatarBtn" class="btn-main" disabled data-action="showNameEntryScreen" aria-describedby="avatarNextDesc">
-          التالي
-        </button>
-        <span id="avatarNextDesc" class="sr-only">المتابعة إلى إدخال الاسم بعد اختيار الصورة الرمزية</span>
+        <button id="confirmAvatarBtn" class="btn-main" disabled data-action="showNameEntryScreen">التالي</button>
       </div>
     </div>
   </div>
 
   <div id="nameEntryScreen" class="screen">
     <div class="content-box">
-      <header class="screen-header">
-        <h2>أدخل اسمك</h2>
-      </header>
+      <header class="screen-header"><h2>أدخل اسمك</h2></header>
       <div class="form-group">
         <label for="nameInput" class="sr-only">اسم اللاعب</label>
-        <input type="text" id="nameInput" placeholder="مثلا: عبد الله" maxlength="25" autocomplete="name" 
-               aria-required="true" aria-describedby="nameError nameHelp" inputmode="text">
-        <div id="nameError" class="error-message" aria-live="assertive"></div>
-        <div id="nameHelp" class="help-text">الحد الأقصى 25 حرفاً</div>
+        <input type="text" id="nameInput" placeholder="مثلا: عبد الله" maxlength="25" autocomplete="name" aria-required="true" aria-describedby="nameError">
+        <div id="nameError" class="error-message" aria-live="polite"></div>
       </div>
       <div class="button-group">
-        <button id="confirmNameBtn" class="btn-main" disabled data-action="confirmName" aria-describedby="nameConfirmDesc">
-          تأكيد الإسم
-        </button>
-        <span id="nameConfirmDesc" class="sr-only">تأكيد اسم اللاعب والمتابعة إلى التعليمات</span>
+        <button id="confirmNameBtn" class="btn-main" disabled data-action="confirmName">تأكيد الإسم</button>
       </div>
     </div>
   </div>
 
-  <div id="instructionsScreen" class="screen">
+  <div id="instructionsScreen" class="screen screen--align-top">
     <div class="content-box">
-      <header class="screen-header">
-        <h2>📋 إرشادات اللعب</h2>
-      </header>
-      <div class="instructions-content" role="article" aria-label="تعليمات اللعبة">
+      <header class="screen-header"><h2>📋 إرشادات اللعب</h2></header>
+      <div class="instructions-content">
 
-        <section class="instruction-item" aria-labelledby="pointsTitle">
-          <span class="instruction-icon" aria-hidden="true">⚖️</span>
+        <div class="instruction-item">
+          <span class="instruction-icon">⚖️</span>
           <div>
-            <h3 id="pointsTitle">النقاط</h3>
+            <strong>النقاط:</strong>
             <ul>
               <li>الصحيحة: +100</li>
               <li>الخاطئة: -100</li>
             </ul>
           </div>
-        </section>
+        </div>
 
-        <section class="instruction-item" aria-labelledby="helpersTitle">
-          <span class="instruction-icon" aria-hidden="true">🛠️</span>
+        <div class="instruction-item">
+          <span class="instruction-icon">🛠️</span>
           <div>
-            <h3 id="helpersTitle">المساعدات</h3>
+            <strong>المساعدات:</strong>
             <ul>
               <li>التخطي مجانية تماما</li>
               <li>الأخرى تتجدد مع أول ثلاثة مستويات</li>
             </ul>
           </div>
-        </section>
+        </div>
 
-        <section class="instruction-item" aria-labelledby="levelsTitle">
-          <span class="instruction-icon" aria-hidden="true">🎯</span>
+        <div class="instruction-item">
+          <span class="instruction-icon">🎯</span>
           <div class="inline-list">
-            <h3 id="levelsTitle">المستويات</h3>
+            <strong>المستويات:</strong><br>
             سهل / متوسط / صعب / مستحيل
           </div>
-        </section>
+        </div>
 
-        <section class="instruction-item" aria-labelledby="supportTitle">
-          <span class="instruction-icon" aria-hidden="true">📩</span>
+        <div class="instruction-item">
+          <span class="instruction-icon">📩</span>
           <div>
-            <h3 id="supportTitle">الدعم</h3>
+            <strong>الدعم:</strong>
             <ul>
-              <li>تواصل عبر <a href="https://x.com/_MS_AbuQusay" target="_blank" rel="noopener noreferrer" aria-label="زيارة حساب إكس (يفتح في نافذة جديدة)">إكس</a></li>
-              <li>أو عبر <a href="https://www.instagram.com/_ms_abuqusay" target="_blank" rel="noopener noreferrer" aria-label="زيارة حساب انستغرام (يفتح في نافذة جديدة)">انستغرام</a></li>
+              <li>تواصل عبر <a href="https://x.com/_MS_AbuQusay" target="_blank" rel="noopener noreferrer">إكس</a></li>
+              <li>أو عبر <a href="https://www.instagram.com/_ms_abuqusay" target="_blank" rel="noopener noreferrer">انستغرام</a></li>
             </ul>
           </div>
-        </section>
+        </div>
 
       </div>
 
       <div class="button-group">
-        <button id="startGameBtn" class="btn-main" data-action="postInstructionsStart" aria-describedby="instructionsStartDesc">
-          حسناً، لنبدأ
-        </button>
-        <span id="instructionsStartDesc" class="sr-only">بدء اللعبة بعد قراءة التعليمات</span>
+        <button class="btn-main" data-action="postInstructionsStart">حسناً، لنبدأ</button>
       </div>
     </div>
   </div>
 
-  <main id="gameContainer" class="screen" role="main">
+  <main id="gameContainer" class="screen">
     <div class="top-bar">
-      <button id="endQuizBtn" class="end-quiz-btn" aria-label="إنهاء المسابقة" data-action="showConfirmExitModal">
-        <span aria-hidden="true">🚪</span> إنهاء
-      </button>
-      <div class="level-progress" role="navigation" aria-label="مستويات اللعبة">
-        <div class="level-indicator" data-level="easy" data-tooltip="المستوى السهل" role="button" tabindex="0" aria-label="المستوى السهل">1</div>
-        <div class="level-indicator" data-level="medium" data-tooltip="المستوى المتوسط" role="button" tabindex="0" aria-label="المستوى المتوسط">2</div>
-        <div class="level-indicator" data-level="hard" data-tooltip="المستوى الصعب" role="button" tabindex="0" aria-label="المستوى الصعب">3</div>
-        <div class="level-indicator" data-level="impossible" data-tooltip="المستوى المستحيل" role="button" tabindex="0" aria-label="المستوى المستحيل">4</div>
+      <button class="end-quiz-btn" aria-label="إنهاء المسابقة" data-action="showConfirmExitModal">🚪 إنهاء</button>
+      <div class="level-progress">
+        <div class="level-indicator" data-level="easy" data-tooltip="المستوى السهل">1</div>
+        <div class="level-indicator" data-level="medium" data-tooltip="المستوى المتوسط">2</div>
+        <div class="level-indicator" data-level="hard" data-tooltip="المستوى الصعب">3</div>
+        <div class="level-indicator" data-level="impossible" data-tooltip="المستوى المستحيل">4</div>
       </div>
-      <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="تبديل وضع السطوع والظلام" data-action="toggleTheme">
-        <span aria-hidden="true">☀️</span>
-        <span class="sr-only">تبديل الوضع</span>
-      </button>
+      <button class="theme-toggle-btn" aria-label="تبديل وضع السطوع والظلام" data-action="toggleTheme">☀️</button>
     </div>
 
     <header class="game-header">
       <div class="player-info">
         <div class="player-main">
-          <img id="playerAvatar" src="" alt="الصورة الرمزية للاعب" loading="lazy" decoding="async" width="40" height="40">
+          <img id="playerAvatar" src="" alt="الصورة الرمزية للاعب" loading="lazy" decoding="async">
           <div class="player-details">
             <span id="playerName" aria-label="اسم اللاعب"></span>
             <span id="playerId" class="player-id"></span>
@@ -283,15 +162,9 @@
       </div>
 
       <div class="helpers" aria-label="خيارات المساعدة">
-        <button id="fiftyFiftyBtn" class="helper-btn" data-type="fiftyFifty" aria-describedby="fiftyFiftyDesc">
-          <span class="sr-only">مساعدة 50:50</span>50:50<span class="helper-cost">(100)</span>
-        </button>
-        <button id="freezeTimeBtn" class="helper-btn" data-type="freezeTime" aria-describedby="freezeTimeDesc">
-          <span class="sr-only">مساعدة تجميد الوقت</span>❄️ 10ث<span class="helper-cost">(100)</span>
-        </button>
-        <button id="skipQuestionBtn" class="helper-btn" data-type="skipQuestion" aria-describedby="skipQuestionDesc">
-          <span class="sr-only">تخطي السؤال</span>⏭️ تخطي<span id="skipCost" class="helper-cost">(مجانية)</span>
-        </button>
+        <button class="helper-btn" data-type="fiftyFifty" aria-describedby="fiftyFiftyDesc"><span class="sr-only">مساعدة 50:50</span>50:50<span class="helper-cost">(100)</span></button>
+        <button class="helper-btn" data-type="freezeTime" aria-describedby="freezeTimeDesc"><span class="sr-only">مساعدة تجميد الوقت</span>❄️ 10ث<span class="helper-cost">(100)</span></button>
+        <button class="helper-btn" data-type="skipQuestion" aria-describedby="skipQuestionDesc"><span class="sr-only">تخطي السؤال</span>⏭️ تخطي<span id="skipCost" class="helper-cost">(مجانية)</span></button>
 
         <span id="fiftyFiftyDesc" class="sr-only">يزيل خيارين خاطئين. الاستخدام مرة واحدة لكل جولة. التكلفة 100 نقطة.</span>
         <span id="freezeTimeDesc" class="sr-only">يوقف المؤقت 10 ثوانٍ. الاستخدام مرة واحدة لكل جولة. التكلفة 100 نقطة.</span>
@@ -300,23 +173,22 @@
     </header>
 
     <div class="timer-container" aria-label="مؤقت السؤال">
-      <div id="timerBar" class="timer-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"></div>
+      <div class="timer-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"></div>
       <span id="timer" class="timer-text">30</span>
     </div>
 
     <div class="main-content">
-      <section class="question-box" aria-labelledby="questionCounter questionText">
-        <div class="level-badge" id="currentLevelBadge" aria-hidden="true">سهل</div>
+      <section class="question-box" aria-labelledby="questionCounter">
+        <div class="level-badge" id="currentLevelBadge">سهل</div>
         <h3 id="questionCounter">السؤال 1 من 5</h3>
         <p id="questionText" aria-live="polite"></p>
       </section>
       <section class="options-container" aria-labelledby="questionText">
-        <div id="optionsGrid" class="options-grid" role="radiogroup" aria-label="خيارات الإجابة" aria-required="true"></div>
+        <div class="options-grid" role="group" aria-label="خيارات الإجابة"></div>
       </section>
     </div>
   </main>
 
-  <!-- شاشات إضافية -->
   <div id="levelCompleteScreen" class="screen">
     <div class="content-box">
       <header class="screen-header"><h2 id="levelCompleteTitle">🎉 أكملت المستوى!</h2></header>
@@ -326,13 +198,13 @@
         <p>الأسئلة الصحيحة: <strong id="levelCorrect"></strong></p>
       </div>
       <div class="button-group">
-        <button id="nextLevelBtn" class="btn-main" data-action="nextLevel">المستوى التالي</button>
-        <button id="endGameBtn" class="btn-secondary" data-action="endGame">الانسحاب وعرض النتائج</button>
+        <button class="btn-main" data-action="nextLevel">المستوى التالي</button>
+        <button class="btn-secondary" data-action="endGame">الانسحاب وعرض النتائج</button>
       </div>
     </div>
   </div>
 
-  <div id="endScreen" class="screen">
+  <div id="endScreen" class="screen screen--align-top">
     <div class="content-box">
       <header class="screen-header"><h2>🏆 النتائج النهائية 🏆</h2></header>
       <div class="final-stats">
@@ -352,24 +224,26 @@
       <section class="share-section">
         <h3>📢 مشاركة النتائج</h3>
         <div class="share-buttons">
-          <button id="shareXBtn" class="share-btn x" data-action="shareOnX">X</button>
-          <button id="shareInstagramBtn" class="share-btn instagram" data-action="shareOnInstagram">Instagram</button>
+          <button class="share-btn x" data-action="shareOnX">X</button>
+          <button class="share-btn instagram" data-action="shareOnInstagram">Instagram</button>
         </div>
       </section>
 
+      <!-- 👇 أضف هذا الجزء هنا -->
       <p id="retryHint" style="display:none; text-align:center; margin-top:1rem;">
         ⏳ يمكنك المحاولة مجددًا بعد <b id="retryCountdown">30</b> ثانية.
       </p>
+      <!-- 👆 نهاية الجزء الجديد -->
       
       <div class="button-group">
          <button id="playAgainBtn" class="btn-main" data-action="playAgain">أعد اللعب</button>
-         <button id="leaderboardEndBtn" class="btn-secondary" data-action="showLeaderboard">لوحة الصدارة</button>
-        <button id="homeBtn" class="btn-secondary" data-action="showStartScreen">العودة للرئيسية</button>
+         <button class="btn-secondary" data-action="showLeaderboard">لوحة الصدارة</button>
+        <button class="btn-secondary" data-action="showStartScreen">العودة للرئيسية</button>
       </div>
     </div>
   </div>
 
-  <div id="leaderboardScreen" class="screen">
+  <div id="leaderboardScreen" class="screen screen--align-top">
     <div class="content-box">
       <header class="screen-header"><h2>🏆 لوحة الصدارة 🏆</h2></header>
      
@@ -388,7 +262,7 @@
      
       <div id="leaderboardContent" aria-live="polite"></div>
       <div class="button-group">
-        <button id="backFromLeaderboardBtn" class="btn-secondary" data-action="showStartScreen">العودة</button>
+        <button class="btn-secondary" data-action="showStartScreen">العودة</button>
       </div>
     </div>
   </div>
@@ -399,49 +273,102 @@
       <h3 id="confirmExitTitle">إنهاء المسابقة</h3>
       <p>سيتم حفظ نقاطك الحالية. هل ترغب في المتابعة؟</p>
       <div class="modal-buttons">
-        <button id="confirmExitBtn" class="btn-main" data-action="endGame">نعم</button>
-        <button id="cancelExitBtn" class="btn-secondary" data-action="closeModal" data-modal-id="confirmExitModal">لا</button>
+        <button class="btn-main" data-action="endGame">نعم</button>
+        <button class="btn-secondary" data-action="closeModal" data-modal-id="confirmExitModal">لا</button>
       </div>
     </div>
   </div>
 
-  <!-- Input file مخفي لرفع الصور -->
-  <input type="file" id="avatarFileInput" accept="image/*" style="display: none;">
+  <div id="advancedReportModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="advancedReportTitle">
+    <div class="modal-content">
+      <h3 id="advancedReportTitle">الإبلاغ عن مشكلة</h3>
+      <form id="reportProblemForm">
+        <div class="form-group">
+          <label for="problemType">نوع المشكلة:</label>
+          <select id="problemType" name="problemType" required>
+            <option value="">اختر نوع المشكلة...</option>
+            <option value="technical">مشكلة تقنية (تجمد، بطء)</option>
+            <option value="question_error">خطأ في السؤال أو الإجابة</option>
+            <option value="account_issue">مشكلة في الحساب أو النقاط</option>
+            <option value="ui_ux">واجهة/تجربة المستخدم</option>
+            <option value="performance">الأداء/السرعة</option>
+            <option value="suggestion">اقتراح لتحسين اللعبة</option>
+            <option value="other">أخرى</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="problemLocation">أين ظهرت المشكلة؟ (اختياري)</label>
+          <select id="problemLocation" name="problemLocation">
+            <option value="unspecified">لم أحدد...</option>
+            <option value="start">شاشة البداية</option>
+            <option value="avatar">اختيار الصورة الرمزية</option>
+            <option value="name">إدخال الاسم</option>
+            <option value="instructions">التعليمات</option>
+            <option value="game">أثناء الأسئلة</option>
+            <option value="leaderboard">لوحة الصدارة</option>
+            <option value="end">شاشة النتيجة</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="problemDescription">وصف المشكلة:</label>
+          <textarea id="problemDescription" name="problemDescription" placeholder="يرجى تقديم تفاصيل دقيقة..." required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="problemScreenshot">إرفاق صورة/لقطة شاشة (اختياري):</label>
+          <input type="file" id="problemScreenshot" accept="image/*">
+          <div id="reportImagePreview" style="margin-top:.5rem;display:none;">
+            <img alt="معاينة الصورة" style="max-width:100%;border-radius:.5rem;border:1px solid var(--border-color)"/>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label><input type="checkbox" id="includeAutoDiagnostics" checked> إرفاق معلومات التشخيص التلقائي</label>
+        </div>
+
+        <div class="modal-buttons">
+          <button type="submit" class="btn-main">إرسال البلاغ</button>
+          <button type="button" class="btn-secondary" data-action="closeModal" data-modal-id="advancedReportModal">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="avatarEditorModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="avatarEditorTitle">
+    <div class="modal-content">
+      <h3 id="avatarEditorTitle">تعديل الصورة الرمزية</h3>
+      <div id="image-editor-container">
+        <img id="image-to-crop" src="" alt="صورة للتقليم/القص">
+      </div>
+      <div class="modal-buttons">
+        <button class="btn-main" data-action="saveCroppedAvatar">حفظ الصورة</button>
+        <button class="btn-secondary" data-action="closeModal" data-modal-id="avatarEditorModal">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="playerDetailsModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="playerDetailsTitle">
+    <div class="modal-content">
+      <header class="player-details-header">
+        <img id="detailsAvatar" src="" alt="صورة اللاعب الرمزية" class="player-details-avatar">
+        <h3 id="playerDetailsTitle">تفاصيل اللاعب</h3>
+        <span id="detailsName"></span>
+        <span id="detailsPlayerId" class="player-id"></span>
+      </header>
+      <div id="playerDetailsContent" class="player-details-body"></div>
+      <div class="modal-buttons">
+        <button class="btn-secondary" data-action="closeModal" data-modal-id="playerDetailsModal">إغلاق</button>
+      </div>
+    </div>
+  </div>
 
   <!-- External Libraries -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js" defer crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
 
   <!-- App JS -->
-  <script>
-    // كود تهيئة أولي لمنع الأخطاء
-    window.addEventListener('DOMContentLoaded', function() {
-      // تهيئة safe-area-inset CSS variables
-      const root = document.documentElement;
-      root.style.setProperty('--safe-area-inset-top', 'env(safe-area-inset-top, 0px)');
-      root.style.setProperty('--safe-area-inset-right', 'env(safe-area-inset-right, 0px)');
-      root.style.setProperty('--safe-area-inset-bottom', 'env(safe-area-inset-bottom, 0px)');
-      root.style.setProperty('--safe-area-inset-left', 'env(safe-area-inset-left, 0px)');
-      
-      // إضافة class للخطوط بعد تحميلها
-      document.body.classList.add('fonts-loaded');
-      document.body.classList.remove('fonts-loading');
-    });
-
-    // Fallback في حالة فشل التحميل
-    setTimeout(() => {
-      const loader = document.getElementById('loader');
-      if (loader && loader.classList.contains('active')) {
-        loader.innerHTML = `
-          <div class="content-box">
-            <h2>⚠️ مشكلة في التحميل</h2>
-            <p>جاري محاولة إصلاح المشكلة...</p>
-            <button onclick="window.location.reload()" class="btn-main">إعادة المحاولة</button>
-          </div>
-        `;
-      }
-    }, 10000);
-  </script>
-  <script src="script.js?v=20" defer></script>
+  <script src="script.js?v=19" defer></script>
 </body>
 </html>
