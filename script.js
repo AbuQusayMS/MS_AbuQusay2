@@ -15,11 +15,12 @@ class QuizGame {
             SUPABASE_URL: 'https://ckbphyndplaihlfdypyi.supabase.co',
             SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrYnBoeW5kcGxhaWhsZmR5cHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1MjI3MjQsImV4cCI6MjA3NjA5ODcyNH0.waA1ZU5pU3n-d7VHn18MQ8J7qVPT9mz1udKUeEjcydI',
             EDGE_SAVE_URL: 'https://ckbphyndplaihlfdypyi.supabase.co/functions/v1/saveResult',
-            EDGE_REPORT_URL: 'https://ckbphyndplaihlfdypyi.supabase.co/functions/v1/report',
             EDGE_LOG_URL: 'https://ckbphyndplaihlfdypyi.supabase.co/functions/v1/clientLog',
+            EDGE_REPORT_URL: 'https://ckbphyndplaihlfdypyi.supabase.co/functions/v1/report',
+            EDGE_LEADERBOARD_URL: 'https://ckbphyndplaihlfdypyi.supabase.co/functions/v1/leaderboard',
             APP_KEY: 'MS_AbuQusay',
             QUESTIONS_URL: 'https://abuqusayms.github.io/MS_AbuQusay/questions.json',
-            EDGE_LEADERBOARD_URL: 'https://ckbphyndplaihlfdypyi.supabase.co/functions/v1/leaderboard',
+         
 
             QUESTION_TIME: 80,
             MAX_WRONG_ANSWERS: 3,
