@@ -174,18 +174,21 @@ class QuizGame {
         if (homeBtn) {
             homeBtn.addEventListener('click', () => this.showScreen('home'));
         }
-    }
 
-        // إدخال الاسم
-        this.dom.nameInput.addEventListener('input', () => this.validateNameInput());
-        this.dom.nameInput.addEventListener('keypress', (e) => { 
-            if (e.key === 'Enter') this.handleNameConfirmation(); 
-        });
+        // 🔹 إدخال الاسم
+        if (this.dom.nameInput) {
+            this.dom.nameInput.addEventListener('input', () => this.validateNameInput());
+            this.dom.nameInput.addEventListener('keypress', (e) => { 
+                if (e.key === 'Enter') this.handleNameConfirmation(); 
+            });
+        }
 
-        // نموذج البلاغ
-        this.dom.reportProblemForm.addEventListener('submit', (e) => this.handleReportSubmitGuarded(e));
+        // 🔹 نموذج البلاغ
+        if (this.dom.reportProblemForm) {
+            this.dom.reportProblemForm.addEventListener('submit', (e) => this.handleReportSubmitGuarded(e));
+        }
 
-        // خيارات السؤال
+        // 🔹 خيارات السؤال
         if (this.dom.optionsGrid) {
             this.dom.optionsGrid.addEventListener('click', (e) => {
                 const btn = e.target.closest('.option-btn');
@@ -195,7 +198,7 @@ class QuizGame {
             });
         }
 
-        // أزرار المساعدات
+        // 🔹 أزرار المساعدات
         const helpersEl = this.getEl('.helpers');
         if (helpersEl) {
             helpersEl.addEventListener('click', (e) => {
@@ -204,7 +207,7 @@ class QuizGame {
             });
         }
 
-        // شبكة الصور الرمزية
+        // 🔹 شبكة الصور الرمزية
         const avatarGrid = this.getEl('.avatar-grid');
         if (avatarGrid) {
             avatarGrid.addEventListener('click', (e) => {
@@ -212,9 +215,12 @@ class QuizGame {
             });
         }
 
-        if (this.dom.reportFab) this.dom.reportFab.addEventListener('click', () => this.showModal('advancedReport'));
+        // 🔹 زر فتح نموذج البلاغ
+        if (this.dom.reportFab) {
+            this.dom.reportFab.addEventListener('click', () => this.showModal('advancedReport'));
+        }
 
-        // إغلاق النوافذ بالنقر خارج المحتوى
+        // 🔹 إغلاق النوافذ بالنقر خارج المحتوى
         document.querySelectorAll('.modal').forEach(modal => {
             modal.addEventListener('click', (e) => { 
                 if (e.target.classList.contains('modal')) {
@@ -225,22 +231,24 @@ class QuizGame {
             });
         });
 
-        // عرض معاينة صورة البلاغ
-        this.dom.problemScreenshot.addEventListener('change', (e) => {
-            const file = e.target.files?.[0];
-            const prev = this.dom.reportImagePreview;
-            if (!file) { 
-                prev.style.display = 'none'; 
-                prev.querySelector('img').src = ''; 
-                return; 
-            }
-            const url = URL.createObjectURL(file);
-            prev.style.display = 'block';
-            prev.querySelector('img').src = url;
-            this.cleanupQueue.push({ type: 'url', value: url });
-        });
+        // 🔹 عرض معاينة صورة البلاغ
+        if (this.dom.problemScreenshot) {
+            this.dom.problemScreenshot.addEventListener('change', (e) => {
+                const file = e.target.files?.[0];
+                const prev = this.dom.reportImagePreview;
+                if (!file) { 
+                    prev.style.display = 'none'; 
+                    prev.querySelector('img').src = ''; 
+                    return; 
+                }
+                const url = URL.createObjectURL(file);
+                prev.style.display = 'block';
+                prev.querySelector('img').src = url;
+                this.cleanupQueue.push({ type: 'url', value: url });
+            });
+        }
 
-        // زر الهروب
+        // 🔹 زر الهروب (Esc)
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 const open = document.querySelector('.modal.active');
@@ -252,15 +260,20 @@ class QuizGame {
             }
         });
 
-        // لوحة الصدارة: تبديل الوضع/المحاولة
-        this.dom.lbMode?.addEventListener('change', () => {
-            const m = this.dom.lbMode.value;
-            if (this.dom.lbAttempt) this.dom.lbAttempt.disabled = (m !== 'attempt');
-            this.displayLeaderboard();
-        });
-        this.dom.lbAttempt?.addEventListener('change', () => this.displayLeaderboard());
+        // 🔹 لوحة الصدارة: تبديل الوضع/المحاولة
+        if (this.dom.lbMode) {
+            this.dom.lbMode.addEventListener('change', () => {
+                const m = this.dom.lbMode.value;
+                if (this.dom.lbAttempt) this.dom.lbAttempt.disabled = (m !== 'attempt');
+                this.displayLeaderboard();
+            });
+        }
 
-        // تحسين: إعادة الاتصال تلقائيًا
+        if (this.dom.lbAttempt) {
+            this.dom.lbAttempt.addEventListener('change', () => this.displayLeaderboard());
+        }
+
+        // 🔹 تحسين: إعادة الاتصال تلقائيًا
         window.addEventListener('online', () => this.handleOnlineStatus());
         window.addEventListener('offline', () => this.handleOfflineStatus());
     }
