@@ -125,39 +125,56 @@ class QuizGame {
 
     /* ———————————————— ربط الأحداث العامة ———————————————— */
     bindEventListeners() {
-        document.body.addEventListener('click', (e) => {
-            const target = e.target.closest('[data-action]');
-            if (!target) return;
-            const action = target.dataset.action;
+        // 🔹 زر البدء
+        const startBtn = this.getEl('#startButton');
+        if (startBtn) {
+            startBtn.addEventListener('click', () => this.startGame());
+        } else {
+            console.warn('⚠️ startButton غير موجود في الصفحة.');
+        }
 
-            const actionHandlers = {
-                showAvatarScreen:        () => this.startFromHomeGuarded(target),
-                showNameEntryScreen:     () => this.showScreen('nameEntry'),
-                confirmName:             () => this.handleNameConfirmation(),
-                postInstructionsStart:   () => this.postInstructionsStartGuarded(target),
-                showLeaderboard:         () => this.displayLeaderboard(),
-                showStartScreen:         () => this.showScreen('start'),
-                toggleTheme:             () => this.toggleTheme(),
-                showConfirmExitModal:    () => this.showModal('confirmExit'),
-                closeModal:              () => {
-                    const id = target.dataset.modalId || target.dataset.modalKey;
-                    if (id === 'avatarEditor' || id === 'avatarEditorModal') this.cleanupAvatarEditor();
-                    this.hideModal(id);
-                },
-                endGame:                 () => this.endGame(),
-                nextLevel:               () => this.nextLevel(),
-                playAgain:               () => this.playAgainGuarded(target),
-                shareOnX:                () => this.shareOnX(),
-                shareOnInstagram:        () => this.shareOnInstagram(),
-                saveCroppedAvatar:       () => this.saveCroppedAvatar()
-            };
+        // 🔹 زر السؤال التالي
+        const nextBtn = this.getEl('#nextButton');
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => this.nextQuestion());
+        } else {
+            console.warn('⚠️ nextButton غير موجود في الصفحة.');
+        }
 
-            if (!this.guardAction(target, action)) return;
-            if (actionHandlers[action]) {
-                this.playSound('click');
-                actionHandlers[action]();
-            }
-        });
+        // 🔹 زر الخروج / الإنهاء
+        const quitBtn = this.getEl('#quitButton');
+        if (quitBtn) {
+            quitBtn.addEventListener('click', () => this.quitGame());
+        } else {
+            console.warn('⚠️ quitButton غير موجود في الصفحة.');
+        }
+
+        // 🔹 خيارات الإجابات (إن وُجدت)
+        const optionsGrid = this.getEl('#optionsGrid');
+        if (optionsGrid) {
+            optionsGrid.addEventListener('click', (e) => this.handleOptionClick(e));
+        } else {
+            console.warn('⚠️ optionsGrid غير موجود في الصفحة.');
+        }
+
+        // 🔹 زر المساعدة 50:50
+        const fiftyBtn = this.getEl('#btnFifty');
+        if (fiftyBtn) {
+            fiftyBtn.addEventListener('click', () => this.useHelper('fiftyFifty'));
+        }
+
+        // 🔹 زر تجميد الوقت
+        const freezeBtn = this.getEl('#btnFreeze');
+        if (freezeBtn) {
+            freezeBtn.addEventListener('click', () => this.useHelper('freezeTime'));
+        }
+
+        // 🔹 أي عناصر إضافية مثل عرض النتائج أو العودة للقائمة
+        const homeBtn = this.getEl('#homeButton');
+        if (homeBtn) {
+            homeBtn.addEventListener('click', () => this.showScreen('home'));
+        }
+    }
 
         // إدخال الاسم
         this.dom.nameInput.addEventListener('input', () => this.validateNameInput());
