@@ -1335,7 +1335,6 @@ Object.assign(QuizGame.prototype, {
       const box = this.dom.leaderboardContent;
       if (box) box.innerHTML = '<div class="spinner"></div>';
 
-      // أول فتح: اضبط الوضع على "all"
       if (!this.lbFirstOpenDone) {
         if (this.dom.lbMode) this.dom.lbMode.value = 'all';
         this.lbFirstOpenDone = true;
@@ -1344,7 +1343,6 @@ Object.assign(QuizGame.prototype, {
       const mode = this.dom.lbMode?.value || 'all';
       if (this.dom.lbAttempt) this.dom.lbAttempt.disabled = (mode !== 'attempt');
 
-      // مسار الدالة (خذ EDGE_LEADERBOARD_URL إن وُجد وإلا ابنِه من SUPABASE_URL)
       const LB_URL =
         this.config.EDGE_LEADERBOARD_URL ||
         (this.config.SUPABASE_URL + '/functions/v1/leaderboard');
@@ -1353,14 +1351,12 @@ Object.assign(QuizGame.prototype, {
         let rows;
 
         if (mode === 'attempt') {
-          // حدّث قائمة المحاولات أولًا
           await this.updateAttemptsFilter();
           const attemptN = Number(this.dom.lbAttempt?.value || 1);
           rows = await this._postJson(LB_URL, { mode: 'attempt', attempt: attemptN });
         } else {
-          rows = await this._postJson(LB_URL, { mode }); // تُعيد Array جاهزة
+          rows = await this._postJson(LB_URL, { mode });
           if (mode === 'best') {
-            // احتفظ بأفضل صف لكل device_id
             const seen = new Map();
             const uniq = [];
             for (const r of rows || []) {
@@ -1375,10 +1371,10 @@ Object.assign(QuizGame.prototype, {
         console.error('Error loading leaderboard:', e);
         if (box) box.innerHTML = '<p>حدث خطأ في تحميل لوحة الصدارة.</p>';
       }
-    }
+    }, // 👈👈 الفاصلة هنا ضرورية
 
     async updateAttemptsFilter() {
-      const LB_URL =
+          const LB_URL =
         this.config.EDGE_LEADERBOARD_URL ||
         (this.config.SUPABASE_URL + '/functions/v1/leaderboard');
 
@@ -1405,29 +1401,29 @@ Object.assign(QuizGame.prototype, {
       } catch (e) {
         console.error('Error updating attempts filter:', e);
       }
-    }
-   
+    }, // 👈👈 وأيضًا فاصلة هنا
+
     renderLeaderboard(players) {
-        if (!players.length) { this.dom.leaderboardContent.innerHTML = '<p>لوحة الصدارة فارغة حاليًا!</p>'; return; }
-        const list = document.createElement('ul'); list.className = 'leaderboard-list';
-        const medals = ['🥇','🥈','🥉']; let rank = 1;
-        players.forEach(p => {
-            const li = document.createElement('li'); li.className = 'leaderboard-item';
-            let rankDisplay;
-            if (p.is_impossible_finisher) { li.classList.add('impossible-finisher'); rankDisplay = '🎖️'; }
-            else { if (rank <= 3) { li.classList.add(`rank-${rank}`); rankDisplay = medals[rank-1]; } else rankDisplay = rank; rank++; }
-            li.innerHTML = `
-                <span class="leaderboard-rank">${rankDisplay}</span>
-                <img src="${p.avatar || ''}" alt="صورة ${p.name || ''}" class="leaderboard-avatar" loading="lazy" style="visibility:${p.avatar ? 'visible':'hidden'}">
-                <div class="leaderboard-details">
-                    <span class="leaderboard-name">${p.name || 'غير معروف'}</span>
-                    <span class="leaderboard-score">${this.formatNumber(p.score)}</span>
-                </div>`;
-            li.addEventListener('click', () => this.showPlayerDetails(p));
-            list.appendChild(li);
-        });
-        this.dom.leaderboardContent.innerHTML = '';
-        this.dom.leaderboardContent.appendChild(list);
+      if (!players.length) { this.dom.leaderboardContent.innerHTML = '<p>لوحة الصدارة فارغة حاليًا!</p>'; return; }
+      const list = document.createElement('ul'); list.className = 'leaderboard-list';
+      const medals = ['🥇','🥈','🥉']; let rank = 1;
+      players.forEach(p => {
+        const li = document.createElement('li'); li.className = 'leaderboard-item';
+        let rankDisplay;
+        if (p.is_impossible_finisher) { li.classList.add('impossible-finisher'); rankDisplay = '🎖️'; }
+        else { if (rank <= 3) { li.classList.add(`rank-${rank}`); rankDisplay = medals[rank-1]; } else rankDisplay = rank; rank++; }
+        li.innerHTML = `
+          <span class="leaderboard-rank">${rankDisplay}</span>
+          <img src="${p.avatar || ''}" alt="صورة ${p.name || ''}" class="leaderboard-avatar" loading="lazy" style="visibility:${p.avatar ? 'visible':'hidden'}">
+          <div class="leaderboard-details">
+            <span class="leaderboard-name">${p.name || 'غير معروف'}</span>
+            <span class="leaderboard-score">${this.formatNumber(p.score)}</span>
+          </div>`;
+        li.addEventListener('click', () => this.showPlayerDetails(p));
+        list.appendChild(li);
+      });
+      this.dom.leaderboardContent.innerHTML = '';
+      this.dom.leaderboardContent.appendChild(list);
     },
 
     /* ———————————————— تفاصيل اللاعب ———————————————— */
