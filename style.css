@@ -14,9 +14,7 @@
   --color-dark-silver: #c0c0c0;
   --color-dark-bronze: #cd7f32;
   --color-dark-success: #10b981;
-  --color-dark-warning: #f59e0b;
   --color-dark-error: #ef4444;
-  --color-dark-info: #3b82f6;
 
   /* Light Theme */
   --color-light-bg: #f8fafc;
@@ -29,16 +27,12 @@
   --color-light-silver: #a1a1aa;
   --color-light-bronze: #a16207;
   --color-light-success: #059669;
-  --color-light-warning: #d97706;
   --color-light-error: #dc2626;
-  --color-light-info: #1d4ed8;
 
   /* Neutral Colors */
   --color-white: #ffffff;
   --color-black: #000000;
-  --color-gray-100: #f3f4f6;
   --color-gray-500: #6b7280;
-  --color-gray-800: #1f2937;
 
   /* Level Colors */
   --level-easy: #10b981;
@@ -109,9 +103,7 @@
   --silver-color: var(--color-dark-silver);
   --bronze-color: var(--color-dark-bronze);
   --success-color: var(--color-dark-success);
-  --warning-color: var(--color-dark-warning);
   --error-color: var(--color-dark-error);
-  --info-color: var(--color-dark-info);
 }
 
 /* =========================
@@ -2012,17 +2004,75 @@ button:disabled {
 }
 
 /* =========================
-   📱 Responsive Design
+   📱 Responsive Design - Enhanced
    ========================= */
-@media (max-width: 768px) {
+
+/* تحسينات للهواتف الصغيرة */
+@media (max-width: 480px) {
+  .screen {
+    padding: 
+      calc(var(--space-4) + env(safe-area-inset-top))
+      calc(var(--space-3) + env(safe-area-inset-right))
+      calc(var(--space-4) + env(safe-area-inset-bottom))
+      calc(var(--space-3) + env(safe-area-inset-left));
+    justify-content: flex-start;
+    overflow-y: auto;
+  }
+
   .content-box {
     padding: var(--space-4);
     margin: var(--space-2);
+    max-width: none;
+    width: calc(100% - var(--space-4));
+    border-radius: var(--radius-xl);
+  }
+
+  .game-title {
+    font-size: var(--font-size-2xl);
+    margin-bottom: var(--space-2);
+  }
+
+  .game-subtitle {
+    font-size: var(--font-size-base);
+  }
+
+  /* تحسين شاشة اللعب الرئيسية */
+  #gameContainer {
+    padding: 
+      calc(var(--space-3) + env(safe-area-inset-top))
+      calc(var(--space-3) + env(safe-area-inset-right))
+      calc(var(--space-3) + env(safe-area-inset-bottom))
+      calc(var(--space-3) + env(safe-area-inset-left));
+    gap: var(--space-4);
+  }
+
+  .top-bar {
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .level-progress {
+    order: 2;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .level-indicator {
+    width: 2.5rem;
+    height: 2.5rem;
+    flex: 1;
+    max-width: 4rem;
+  }
+
+  .level-name {
+    font-size: 0.6rem;
   }
 
   .game-header {
     padding: var(--space-4);
     gap: var(--space-4);
+    border-radius: var(--radius-xl);
   }
 
   .player-info {
@@ -2036,12 +2086,26 @@ button:disabled {
     text-align: center;
   }
 
-  .player-details {
-    align-items: center;
+  .player-avatar {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .player-name {
+    font-size: var(--font-size-lg);
   }
 
   .player-stats {
     justify-content: space-around;
+    gap: var(--space-3);
+  }
+
+  .stat-item {
+    min-width: 60px;
+  }
+
+  .stat-value {
+    font-size: var(--font-size-lg);
   }
 
   .helpers {
@@ -2050,10 +2114,44 @@ button:disabled {
   }
 
   .helper-btn {
-    min-height: 60px;
+    min-height: 50px;
     flex-direction: row;
     justify-content: flex-start;
     padding: var(--space-3);
+    border-radius: var(--radius-lg);
+  }
+
+  .helper-icon {
+    font-size: 1rem;
+  }
+
+  .timer-container {
+    margin: var(--space-4) 0;
+    height: 2rem;
+  }
+
+  .timer-text {
+    font-size: var(--font-size-base);
+  }
+
+  .main-content {
+    gap: var(--space-4);
+  }
+
+  .question-box {
+    padding: var(--space-4);
+    border-radius: var(--radius-xl);
+  }
+
+  .question-header {
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+
+  .question-text {
+    font-size: var(--font-size-lg);
+    line-height: 1.4;
   }
 
   .options-grid {
@@ -2062,37 +2160,12 @@ button:disabled {
 
   .option-btn {
     padding: var(--space-4);
+    font-size: var(--font-size-base);
+    min-height: 60px;
+    border-radius: var(--radius-lg);
   }
 
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .level-stats {
-    grid-template-columns: 1fr;
-  }
-
-  .modal-content {
-    width: 95%;
-    padding: var(--space-4);
-  }
-
-  .modal-buttons {
-    flex-direction: column;
-  }
-
-  .top-bar {
-    flex-wrap: wrap;
-  }
-
-  .level-progress {
-    order: 3;
-    flex-basis: 100%;
-    margin-top: var(--space-3);
-  }
-}
-
-@media (max-width: 480px) {
+  /* تحسين الشاشات الأخرى */
   .avatar-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: var(--space-3);
@@ -2100,8 +2173,8 @@ button:disabled {
 
   .instruction-item {
     grid-template-columns: 1fr;
-    gap: var(--space-2);
     text-align: center;
+    gap: var(--space-2);
   }
 
   .instruction-icon {
@@ -2112,36 +2185,144 @@ button:disabled {
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+
+  .final-stat {
+    padding: var(--space-3);
+  }
+
+  .level-stats {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+
+  .stat-card {
+    padding: var(--space-3);
+  }
+
+  .button-group {
+    gap: var(--space-3);
+  }
+
+  .btn-main,
+  .btn-secondary {
+    min-height: 2.75rem;
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--font-size-base);
+  }
+
   .share-buttons {
     flex-direction: column;
-    align-items: stretch;
   }
 
   .share-btn {
     width: 100%;
   }
 
-  .lb-filters {
-    flex-direction: column;
-    align-items: stretch;
+  .modal-content {
+    width: 95%;
+    padding: var(--space-4);
+    margin: var(--space-2);
   }
 
-  .filter-group {
-    min-width: auto;
+  .report-fab {
+    width: 3.5rem;
+    height: 3.5rem;
+    bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+    left: calc(var(--space-4) + env(safe-area-inset-left));
   }
 }
 
-@media (min-width: 1024px) {
+/* تحسينات للهواتف المتوسطة */
+@media (max-width: 768px) and (min-width: 481px) {
   .content-box {
-    max-width: 36rem;
+    max-width: 28rem;
+  }
+
+  .game-header {
+    padding: var(--space-5);
+  }
+
+  .player-info {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .player-stats {
+    gap: var(--space-4);
+  }
+
+  .helpers {
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .options-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
+  }
+}
+
+/* تحسينات خاصة للشاشات الطويلة */
+@media (max-height: 700px) and (max-width: 480px) {
+  .screen {
+    justify-content: flex-start;
+    padding-top: calc(var(--space-2) + env(safe-area-inset-top));
   }
 
-  .stats-grid {
-    grid-template-columns: repeat(3, 1fr);
+  .content-box {
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-2);
+  }
+
+  .screen-header {
+    margin-bottom: var(--space-4);
+  }
+
+  .game-title {
+    font-size: var(--font-size-xl);
+  }
+
+  .instructions-content {
+    margin: var(--space-4) 0;
+    gap: var(--space-4);
+  }
+
+  .instruction-section {
+    padding: var(--space-4);
+  }
+}
+
+/* منع التكبير في حقول الإدخال على iOS */
+@media (max-width: 480px) {
+  input[type="text"],
+  input[type="number"],
+  select,
+  textarea {
+    font-size: 16px; /* يمنع التكبير التلقائي في iOS */
+  }
+}
+
+/* تحسينات للأجهزة التي تدعم الـ hover */
+@media (hover: hover) and (pointer: fine) {
+  .option-btn:hover:not(.disabled) {
+    transform: translateY(-2px);
+  }
+  
+  .btn-main:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+}
+
+/* تحسينات للأجهزة التي لا تدعم الـ hover */
+@media (hover: none) and (pointer: coarse) {
+  .option-btn:active:not(.disabled) {
+    transform: scale(0.98);
+  }
+  
+  .btn-main:active:not(:disabled) {
+    transform: scale(0.98);
   }
 }
 
