@@ -1,23 +1,25 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" class="fonts-loading">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="مسابقة معلومات تفاعلية لاختبار ثقافتك في مستويات متعددة.">
   <title>🧠 مسابقة المعلومات | Hybrid Edition</title>
 
-  <!-- Preload critical resources -->
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" as="style" crossorigin>
+  <!-- Preload محسن مع crossorigin -->
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" as="style" crossorigin="anonymous">
   <link rel="preload" href="style.css" as="style">
   
   <link rel="icon" type="image/png" href="https://em-content.zobj.net/thumbs/120/apple/354/brain_1f9e0.png" loading="eager">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+  
+  <!-- تحميل الخطوط مع crossorigin -->
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet" crossorigin="anonymous">
 
   <!-- Cropper.js CSS -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="style.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
+  <link rel="stylesheet" href="style.css">
 
   <!-- JSON-LD for SEO -->
   <script type="application/ld+json">
@@ -35,15 +37,39 @@
   <!-- Inline critical CSS -->
   <style>
     /* Critical CSS for initial render */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1a1a2e;
+      color: #f0f0f0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    
     .screen { 
-      display: none; 
+      position: fixed;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
       opacity: 0;
       transition: opacity 0.3s ease-in-out;
+      z-index: 1;
     }
+    
     .screen.active { 
-      display: flex; 
+      display: flex;
       opacity: 1;
+      z-index: 10;
     }
+    
     .sr-only {
       position: absolute;
       width: 1px;
@@ -55,20 +81,40 @@
       white-space: nowrap;
       border: 0;
     }
+    
     .content-box {
-      background: var(--card-bg, #fff);
+      background: #16213e;
       border-radius: 1rem;
       padding: 2rem;
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
       width: 90%;
       max-width: 500px;
       margin: 0 auto;
+      border: 1px solid #374151;
+    }
+    
+    .spinner {
+      width: 2.5rem;
+      height: 2.5rem;
+      border: 4px solid #0f3460;
+      border-top: 4px solid #ffd700;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+    
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+    
+    .fonts-loaded body {
+      font-family: 'Cairo', system-ui, sans-serif;
     }
   </style>
 </head>
 <body data-theme="dark">
   <noscript>
-    <div style="text-align: center; padding: 2rem; background: #f8d7da; color: #721c24; border-radius: 0.5rem; margin: 2rem;">
+    <div class="screen active" style="text-align: center; padding: 2rem; background: #f8d7da; color: #721c24; border-radius: 0.5rem; margin: 2rem;">
       <h2>⚠️ JavaScript مطلوب</h2>
       <p>هذه اللعبة تتطلب تفعيل JavaScript. يرجى تمكينه في متصفحك.</p>
     </div>
@@ -76,8 +122,8 @@
 
   <div id="toast-container" class="toast-container" aria-live="assertive"></div>
 
-  <!-- ✅ إصلاح العنصر المكسور -->
-  <button id="reportErrorFab" class="report-fab" role="button" aria-label="الإبلاغ عن مشكلة" tabindex="0">
+  <!-- زر الإبلاغ عن مشكلة -->
+  <button id="reportErrorFab" class="report-fab" role="button" aria-label="الإبلاغ عن مشكلة" tabindex="0" style="display: none;">
     <span aria-hidden="true">⚠️</span>
     <span class="sr-only">الإبلاغ عن مشكلة</span>
   </button>
@@ -98,7 +144,7 @@
         <button id="startBtn" class="btn-main" data-action="showAvatarScreen" aria-describedby="startDesc">
           ابدأ اللعب
         </button>
-        <button data-action="showLeaderboard" class="btn-secondary" aria-describedby="leaderboardDesc">
+        <button id="leaderboardBtn" class="btn-secondary" data-action="showLeaderboard" aria-describedby="leaderboardDesc">
           لوحة الصدارة
         </button>
         
@@ -113,7 +159,7 @@
       <header class="screen-header">
         <h2>اختر صورتك الرمزية</h2>
       </header>
-      <div class="avatar-grid" role="radiogroup" aria-label="خيارات الصور الرمزية" aria-required="true"></div>
+      <div id="avatarGrid" class="avatar-grid" role="radiogroup" aria-label="خيارات الصور الرمزية" aria-required="true"></div>
       <div class="button-group">
         <button id="confirmAvatarBtn" class="btn-main" disabled data-action="showNameEntryScreen" aria-describedby="avatarNextDesc">
           التالي
@@ -144,7 +190,7 @@
     </div>
   </div>
 
-  <div id="instructionsScreen" class="screen screen--align-top">
+  <div id="instructionsScreen" class="screen">
     <div class="content-box">
       <header class="screen-header">
         <h2>📋 إرشادات اللعب</h2>
@@ -195,7 +241,7 @@
       </div>
 
       <div class="button-group">
-        <button class="btn-main" data-action="postInstructionsStart" aria-describedby="instructionsStartDesc">
+        <button id="startGameBtn" class="btn-main" data-action="postInstructionsStart" aria-describedby="instructionsStartDesc">
           حسناً، لنبدأ
         </button>
         <span id="instructionsStartDesc" class="sr-only">بدء اللعبة بعد قراءة التعليمات</span>
@@ -205,7 +251,7 @@
 
   <main id="gameContainer" class="screen" role="main">
     <div class="top-bar">
-      <button class="end-quiz-btn" aria-label="إنهاء المسابقة" data-action="showConfirmExitModal">
+      <button id="endQuizBtn" class="end-quiz-btn" aria-label="إنهاء المسابقة" data-action="showConfirmExitModal">
         <span aria-hidden="true">🚪</span> إنهاء
       </button>
       <div class="level-progress" role="navigation" aria-label="مستويات اللعبة">
@@ -214,7 +260,7 @@
         <div class="level-indicator" data-level="hard" data-tooltip="المستوى الصعب" role="button" tabindex="0" aria-label="المستوى الصعب">3</div>
         <div class="level-indicator" data-level="impossible" data-tooltip="المستوى المستحيل" role="button" tabindex="0" aria-label="المستوى المستحيل">4</div>
       </div>
-      <button class="theme-toggle-btn" aria-label="تبديل وضع السطوع والظلام" data-action="toggleTheme">
+      <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="تبديل وضع السطوع والظلام" data-action="toggleTheme">
         <span aria-hidden="true">☀️</span>
         <span class="sr-only">تبديل الوضع</span>
       </button>
@@ -237,13 +283,13 @@
       </div>
 
       <div class="helpers" aria-label="خيارات المساعدة">
-        <button class="helper-btn" data-type="fiftyFifty" aria-describedby="fiftyFiftyDesc">
+        <button id="fiftyFiftyBtn" class="helper-btn" data-type="fiftyFifty" aria-describedby="fiftyFiftyDesc">
           <span class="sr-only">مساعدة 50:50</span>50:50<span class="helper-cost">(100)</span>
         </button>
-        <button class="helper-btn" data-type="freezeTime" aria-describedby="freezeTimeDesc">
+        <button id="freezeTimeBtn" class="helper-btn" data-type="freezeTime" aria-describedby="freezeTimeDesc">
           <span class="sr-only">مساعدة تجميد الوقت</span>❄️ 10ث<span class="helper-cost">(100)</span>
         </button>
-        <button class="helper-btn" data-type="skipQuestion" aria-describedby="skipQuestionDesc">
+        <button id="skipQuestionBtn" class="helper-btn" data-type="skipQuestion" aria-describedby="skipQuestionDesc">
           <span class="sr-only">تخطي السؤال</span>⏭️ تخطي<span id="skipCost" class="helper-cost">(مجانية)</span>
         </button>
 
@@ -254,7 +300,7 @@
     </header>
 
     <div class="timer-container" aria-label="مؤقت السؤال">
-      <div class="timer-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"></div>
+      <div id="timerBar" class="timer-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"></div>
       <span id="timer" class="timer-text">30</span>
     </div>
 
@@ -265,19 +311,137 @@
         <p id="questionText" aria-live="polite"></p>
       </section>
       <section class="options-container" aria-labelledby="questionText">
-        <div class="options-grid" role="radiogroup" aria-label="خيارات الإجابة" aria-required="true"></div>
+        <div id="optionsGrid" class="options-grid" role="radiogroup" aria-label="خيارات الإجابة" aria-required="true"></div>
       </section>
     </div>
   </main>
 
-  <!-- باقي الشاشات تبقى كما هي مع إضافة نفس التحسينات -->
-  <!-- ... -->
+  <!-- شاشات إضافية -->
+  <div id="levelCompleteScreen" class="screen">
+    <div class="content-box">
+      <header class="screen-header"><h2 id="levelCompleteTitle">🎉 أكملت المستوى!</h2></header>
+      <div class="level-stats">
+        <p>النقاط الحالية: <strong id="levelScore"></strong></p>
+        <p>عدد الأخطاء: <strong id="levelErrors"></strong></p>
+        <p>الأسئلة الصحيحة: <strong id="levelCorrect"></strong></p>
+      </div>
+      <div class="button-group">
+        <button id="nextLevelBtn" class="btn-main" data-action="nextLevel">المستوى التالي</button>
+        <button id="endGameBtn" class="btn-secondary" data-action="endGame">الانسحاب وعرض النتائج</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="endScreen" class="screen">
+    <div class="content-box">
+      <header class="screen-header"><h2>🏆 النتائج النهائية 🏆</h2></header>
+      <div class="final-stats">
+        <p>✍️ الاسم: <strong id="finalName"></strong></p>
+        <p>🆔 المعرّف: <strong id="finalId"></strong></p>
+        <p>🔢 رقم المحاولة: <strong id="finalAttemptNumber"></strong></p>
+        <p>✅ الإجابات الصحيحة: <strong id="finalCorrect"></strong></p>
+        <p>❌ الإجابات الخاطئة: <strong id="finalWrong"></strong></p>
+        <p>⏭️ مرات التخطي: <strong id="finalSkips"></strong></p>
+        <p>⭐ النقاط النهائية: <strong id="finalScore"></strong></p>
+        <p>⏱️ الوقت المستغرق: <strong id="totalTime"></strong></p>
+        <p>📈 المستوى الذي وصلت إليه: <strong id="finalLevel"></strong></p>
+        <p>🎯 نسبة الدقة: <strong id="finalAccuracy"></strong></p>
+        <p>⏳ متوسط وقت الإجابة: <strong id="finalAvgTime"></strong></p>
+        <div class="performance-rating"><span>أداؤك: </span><strong id="performanceText"></strong></div>
+      </div>
+      <section class="share-section">
+        <h3>📢 مشاركة النتائج</h3>
+        <div class="share-buttons">
+          <button id="shareXBtn" class="share-btn x" data-action="shareOnX">X</button>
+          <button id="shareInstagramBtn" class="share-btn instagram" data-action="shareOnInstagram">Instagram</button>
+        </div>
+      </section>
+
+      <p id="retryHint" style="display:none; text-align:center; margin-top:1rem;">
+        ⏳ يمكنك المحاولة مجددًا بعد <b id="retryCountdown">30</b> ثانية.
+      </p>
+      
+      <div class="button-group">
+         <button id="playAgainBtn" class="btn-main" data-action="playAgain">أعد اللعب</button>
+         <button id="leaderboardEndBtn" class="btn-secondary" data-action="showLeaderboard">لوحة الصدارة</button>
+        <button id="homeBtn" class="btn-secondary" data-action="showStartScreen">العودة للرئيسية</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="leaderboardScreen" class="screen">
+    <div class="content-box">
+      <header class="screen-header"><h2>🏆 لوحة الصدارة 🏆</h2></header>
+     
+      <div class="lb-filters">
+        <select id="lbMode" aria-label="نمط ترتيب اللوحة">
+          <option value="all">الكل</option>
+          <option value="best" selected>أفضل نتيجة</option>
+          <option value="attempt">رقم المحاولة</option>
+          <option value="accuracy">أعلى دقة</option>
+          <option value="time">أقل وقت</option>
+         </select>
+        <select id="lbAttempt" disabled aria-label="اختر رقم المحاولة">
+          <!-- سيتم تعبئته ديناميكياً -->
+        </select>
+      </div>
+     
+      <div id="leaderboardContent" aria-live="polite"></div>
+      <div class="button-group">
+        <button id="backFromLeaderboardBtn" class="btn-secondary" data-action="showStartScreen">العودة</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALS -->
+  <div id="confirmExitModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmExitTitle">
+    <div class="modal-content">
+      <h3 id="confirmExitTitle">إنهاء المسابقة</h3>
+      <p>سيتم حفظ نقاطك الحالية. هل ترغب في المتابعة؟</p>
+      <div class="modal-buttons">
+        <button id="confirmExitBtn" class="btn-main" data-action="endGame">نعم</button>
+        <button id="cancelExitBtn" class="btn-secondary" data-action="closeModal" data-modal-id="confirmExitModal">لا</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input file مخفي لرفع الصور -->
+  <input type="file" id="avatarFileInput" accept="image/*" style="display: none;">
 
   <!-- External Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js" defer crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer crossorigin="anonymous"></script>
 
   <!-- App JS -->
-  <script src="script.js?v=19" defer></script>
+  <script>
+    // كود تهيئة أولي لمنع الأخطاء
+    window.addEventListener('DOMContentLoaded', function() {
+      // تهيئة safe-area-inset CSS variables
+      const root = document.documentElement;
+      root.style.setProperty('--safe-area-inset-top', 'env(safe-area-inset-top, 0px)');
+      root.style.setProperty('--safe-area-inset-right', 'env(safe-area-inset-right, 0px)');
+      root.style.setProperty('--safe-area-inset-bottom', 'env(safe-area-inset-bottom, 0px)');
+      root.style.setProperty('--safe-area-inset-left', 'env(safe-area-inset-left, 0px)');
+      
+      // إضافة class للخطوط بعد تحميلها
+      document.body.classList.add('fonts-loaded');
+      document.body.classList.remove('fonts-loading');
+    });
+
+    // Fallback في حالة فشل التحميل
+    setTimeout(() => {
+      const loader = document.getElementById('loader');
+      if (loader && loader.classList.contains('active')) {
+        loader.innerHTML = `
+          <div class="content-box">
+            <h2>⚠️ مشكلة في التحميل</h2>
+            <p>جاري محاولة إصلاح المشكلة...</p>
+            <button onclick="window.location.reload()" class="btn-main">إعادة المحاولة</button>
+          </div>
+        `;
+      }
+    }, 10000);
+  </script>
+  <script src="script.js?v=20" defer></script>
 </body>
 </html>
