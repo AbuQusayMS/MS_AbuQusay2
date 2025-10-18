@@ -125,70 +125,50 @@ class QuizGame {
 
     /* ———————————————— ربط الأحداث العامة ———————————————— */
     bindEventListeners() {
-        // 🔹 زر البدء
-        const startBtn = this.getEl('#startButton');
-        if (startBtn) {
-            startBtn.addEventListener('click', () => this.startGame());
-        } else {
-            console.warn('⚠️ startButton غير موجود في الصفحة.');
-        }
+        document.body.addEventListener('click', (e) => {
+            const target = e.target.closest('[data-action]');
+            if (!target) return;
+            const action = target.dataset.action;
 
-        // 🔹 زر السؤال التالي
-        const nextBtn = this.getEl('#nextButton');
-        if (nextBtn) {
-            nextBtn.addEventListener('click', () => this.nextQuestion());
-        } else {
-            console.warn('⚠️ nextButton غير موجود في الصفحة.');
-        }
+            const actionHandlers = {
+                showAvatarScreen:        () => this.startFromHomeGuarded(target),
+                showNameEntryScreen:     () => this.showScreen('nameEntry'),
+                confirmName:             () => this.handleNameConfirmation(),
+                postInstructionsStart:   () => this.postInstructionsStartGuarded(target),
+                showLeaderboard:         () => this.displayLeaderboard(),
+                showStartScreen:         () => this.showScreen('start'),
+                toggleTheme:             () => this.toggleTheme(),
+                showConfirmExitModal:    () => this.showModal('confirmExit'),
+                closeModal:              () => {
+                    const id = target.dataset.modalId || target.dataset.modalKey;
+                    if (id === 'avatarEditor' || id === 'avatarEditorModal') this.cleanupAvatarEditor();
+                    this.hideModal(id);
+                },
+                endGame:                 () => this.endGame(),
+                nextLevel:               () => this.nextLevel(),
+                playAgain:               () => this.playAgainGuarded(target),
+                shareOnX:                () => this.shareOnX(),
+                shareOnInstagram:        () => this.shareOnInstagram(),
+                saveCroppedAvatar:       () => this.saveCroppedAvatar()
+            };
 
-        // 🔹 زر الخروج / الإنهاء
-        const quitBtn = this.getEl('#quitButton');
-        if (quitBtn) {
-            quitBtn.addEventListener('click', () => this.quitGame());
-        } else {
-            console.warn('⚠️ quitButton غير موجود في الصفحة.');
-        }
+            if (!this.guardAction(target, action)) return;
+            if (actionHandlers[action]) {
+                this.playSound('click');
+                actionHandlers[action]();
+            }
+        });
 
-        // 🔹 خيارات الإجابات (إن وُجدت)
-        const optionsGrid = this.getEl('#optionsGrid');
-        if (optionsGrid) {
-            optionsGrid.addEventListener('click', (e) => this.handleOptionClick(e));
-        } else {
-            console.warn('⚠️ optionsGrid غير موجود في الصفحة.');
-        }
+        // إدخال الاسم
+        this.dom.nameInput.addEventListener('input', () => this.validateNameInput());
+        this.dom.nameInput.addEventListener('keypress', (e) => { 
+            if (e.key === 'Enter') this.handleNameConfirmation(); 
+        });
 
-        // 🔹 زر المساعدة 50:50
-        const fiftyBtn = this.getEl('#btnFifty');
-        if (fiftyBtn) {
-            fiftyBtn.addEventListener('click', () => this.useHelper('fiftyFifty'));
-        }
+        // نموذج البلاغ
+        this.dom.reportProblemForm.addEventListener('submit', (e) => this.handleReportSubmitGuarded(e));
 
-        // 🔹 زر تجميد الوقت
-        const freezeBtn = this.getEl('#btnFreeze');
-        if (freezeBtn) {
-            freezeBtn.addEventListener('click', () => this.useHelper('freezeTime'));
-        }
-
-        // 🔹 أي عناصر إضافية مثل عرض النتائج أو العودة للقائمة
-        const homeBtn = this.getEl('#homeButton');
-        if (homeBtn) {
-            homeBtn.addEventListener('click', () => this.showScreen('home'));
-        }
-
-        // 🔹 إدخال الاسم
-        if (this.dom.nameInput) {
-            this.dom.nameInput.addEventListener('input', () => this.validateNameInput());
-            this.dom.nameInput.addEventListener('keypress', (e) => { 
-                if (e.key === 'Enter') this.handleNameConfirmation(); 
-            });
-        }
-
-        // 🔹 نموذج البلاغ
-        if (this.dom.reportProblemForm) {
-            this.dom.reportProblemForm.addEventListener('submit', (e) => this.handleReportSubmitGuarded(e));
-        }
-
-        // 🔹 خيارات السؤال
+        // خيارات السؤال
         if (this.dom.optionsGrid) {
             this.dom.optionsGrid.addEventListener('click', (e) => {
                 const btn = e.target.closest('.option-btn');
@@ -198,7 +178,7 @@ class QuizGame {
             });
         }
 
-        // 🔹 أزرار المساعدات
+        // أزرار المساعدات
         const helpersEl = this.getEl('.helpers');
         if (helpersEl) {
             helpersEl.addEventListener('click', (e) => {
@@ -207,7 +187,7 @@ class QuizGame {
             });
         }
 
-        // 🔹 شبكة الصور الرمزية
+        // شبكة الصور الرمزية
         const avatarGrid = this.getEl('.avatar-grid');
         if (avatarGrid) {
             avatarGrid.addEventListener('click', (e) => {
@@ -215,12 +195,9 @@ class QuizGame {
             });
         }
 
-        // 🔹 زر فتح نموذج البلاغ
-        if (this.dom.reportFab) {
-            this.dom.reportFab.addEventListener('click', () => this.showModal('advancedReport'));
-        }
+        if (this.dom.reportFab) this.dom.reportFab.addEventListener('click', () => this.showModal('advancedReport'));
 
-        // 🔹 إغلاق النوافذ بالنقر خارج المحتوى
+        // إغلاق النوافذ بالنقر خارج المحتوى
         document.querySelectorAll('.modal').forEach(modal => {
             modal.addEventListener('click', (e) => { 
                 if (e.target.classList.contains('modal')) {
@@ -231,24 +208,22 @@ class QuizGame {
             });
         });
 
-        // 🔹 عرض معاينة صورة البلاغ
-        if (this.dom.problemScreenshot) {
-            this.dom.problemScreenshot.addEventListener('change', (e) => {
-                const file = e.target.files?.[0];
-                const prev = this.dom.reportImagePreview;
-                if (!file) { 
-                    prev.style.display = 'none'; 
-                    prev.querySelector('img').src = ''; 
-                    return; 
-                }
-                const url = URL.createObjectURL(file);
-                prev.style.display = 'block';
-                prev.querySelector('img').src = url;
-                this.cleanupQueue.push({ type: 'url', value: url });
-            });
-        }
+        // عرض معاينة صورة البلاغ
+        this.dom.problemScreenshot.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            const prev = this.dom.reportImagePreview;
+            if (!file) { 
+                prev.style.display = 'none'; 
+                prev.querySelector('img').src = ''; 
+                return; 
+            }
+            const url = URL.createObjectURL(file);
+            prev.style.display = 'block';
+            prev.querySelector('img').src = url;
+            this.cleanupQueue.push({ type: 'url', value: url });
+        });
 
-        // 🔹 زر الهروب (Esc)
+        // زر الهروب
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 const open = document.querySelector('.modal.active');
@@ -260,20 +235,15 @@ class QuizGame {
             }
         });
 
-        // 🔹 لوحة الصدارة: تبديل الوضع/المحاولة
-        if (this.dom.lbMode) {
-            this.dom.lbMode.addEventListener('change', () => {
-                const m = this.dom.lbMode.value;
-                if (this.dom.lbAttempt) this.dom.lbAttempt.disabled = (m !== 'attempt');
-                this.displayLeaderboard();
-            });
-        }
+        // لوحة الصدارة: تبديل الوضع/المحاولة
+        this.dom.lbMode?.addEventListener('change', () => {
+            const m = this.dom.lbMode.value;
+            if (this.dom.lbAttempt) this.dom.lbAttempt.disabled = (m !== 'attempt');
+            this.displayLeaderboard();
+        });
+        this.dom.lbAttempt?.addEventListener('change', () => this.displayLeaderboard());
 
-        if (this.dom.lbAttempt) {
-            this.dom.lbAttempt.addEventListener('change', () => this.displayLeaderboard());
-        }
-
-        // 🔹 تحسين: إعادة الاتصال تلقائيًا
+        // تحسين: إعادة الاتصال تلقائيًا
         window.addEventListener('online', () => this.handleOnlineStatus());
         window.addEventListener('offline', () => this.handleOfflineStatus());
     }
