@@ -706,3 +706,63 @@ textarea { resize: vertical; min-height: 100px; }
     --size: 86px;
   }
 }
+
+/* =========================
+   ✨ Enhancements (append-only)
+   ========================= */
+
+/* ===== Confetti canvas & flashes ===== */
+#confettiCanvas{ position:fixed; inset:0; pointer-events:none; z-index:9999; }
+.option-btn.correct.flash{ animation: flashWin .6s ease; }
+@keyframes flashWin{
+    0%{ box-shadow:0 0 0 rgba(255,255,255,0); }
+    50%{ box-shadow:0 0 28px rgba(255,255,255,.65); transform: translateY(-2px); }
+    100%{ box-shadow:0 0 0 rgba(255,255,255,0); transform:none; }
+}
+
+/* ===== Live backgrounds per level (خلفية حيّة) ===== */
+body[data-level]{
+    background-image:
+        radial-gradient(60rem 30rem at 80% -10%, color-mix(in oklab, var(--level-color) 16%, transparent), transparent 60%),
+        radial-gradient(60rem 30rem at 10% 110%, color-mix(in oklab, var(--level-color) 12%, transparent), transparent 60%);
+    background-attachment: fixed;
+}
+body[data-theme="light"][data-level]{
+    background-image:
+        radial-gradient(60rem 30rem at 80% -10%, color-mix(in oklab, var(--level-color) 12%, transparent), transparent 60%),
+        radial-gradient(60rem 30rem at 10% 110%, color-mix(in oklab, var(--level-color) 10%, transparent), transparent 60%);
+}
+
+/* ===== Timer panic under 5s + low-state ===== */
+.timer-container.low .timer-bar{
+    background: linear-gradient(90deg, var(--error-color), #f59e0b);
+    transition: width .6s linear, background .2s ease;
+}
+.timer-container.panic .timer-text{
+    animation: panicPulse .7s ease-in-out infinite;
+}
+@keyframes panicPulse{
+    0%{ transform: translate(-50%,-50%) scale(1); }
+    50%{ transform: translate(-50%,-50%) scale(1.08); }
+    100%{ transform: translate(-50%,-50%) scale(1); }
+}
+
+/* ===== Sparkline (آخر 10 نتائج) ===== */
+.sparkline{ width:100%; height:42px; display:block; margin-top:.5rem; }
+.final-stats .sparkline-wrap{
+    margin-top:.5rem; border-top:1px dashed var(--border-color); padding-top:.5rem;
+    text-align:center; color: var(--gray-500); font-size:.85rem;
+}
+
+/* ===== Helper cooldown hint ===== */
+.helper-btn.cooldown{ position:relative; opacity:.6; pointer-events:none; }
+.helper-btn.cooldown::after{
+    content:"قيد الانتظار"; position:absolute; inset-inline:0; inset-block-end:.25rem; font-size:.7rem; opacity:.9;
+}
+
+/* ===== Focus mode (تقليل الحركة) ===== */
+body[data-focus="on"] *{ animation:none !important; transition:none !important; }
+body[data-focus="on"]{ background-image:none !important; }
+
+/* ===== تحسينات بسيطة إضافية ===== */
+:root{ color-scheme: light dark; }
