@@ -1334,53 +1334,53 @@ Object.assign(QuizGame.prototype, {
     },
 
     /* أداة إرسال JSON مع مهلة + إعادة محاولة + Idempotency */
-    async _postJson(url, body, { timeoutMs = this._tx.timeoutMs, retries = this._tx.maxRetries, idempotencyKey } = {}) {
-        const headers = {
-            'Content-Type': 'application/json',
-            'x-app-key': this.config.APP_KEY
-        };
+    async _postJson(url, body, { timeoutMs = this._tx.timeoutMs, retries = this._tx.maxRetries } = {}) {
+      const headers = {
+        'Content-Type': 'application/json',
+        'x-app-key': this.config.APP_KEY, // لازم يطابق APP_KEY في الأسرار
+      };
 
-        if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
-        const controller = new AbortController();
-        const t = setTimeout(() => { 
-            try { controller.abort('timeout'); } catch(_){} 
-        }, timeoutMs);
+      const controller = new AbortController();
+      const t = setTimeout(() => { try { controller.abort('timeout'); } catch(_){ } }, timeoutMs);
 
-        const attempt = async () => {
-            const res = await fetch(url, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(body || {}),
-                referrerPolicy: 'no-referrer',
-                signal: controller.signal
-            });
-            const text = await res.text().catch(()=> '');
-            let json = {};
-            try { json = text ? JSON.parse(text) : {}; } catch(_) {}
-            if (!res.ok) {
-                const err = new Error(`HTTP ${res.status}${text ? `: ${text}` : ''}`);
-                err.status = res.status;
-                err.body = text;
-                throw err;
-            }
-            return json;
-        };
+      const attempt = async () => {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body || {}),
+          referrerPolicy: 'no-referrer',
+          signal: controller.signal
+        });
 
-        try {
-            let lastErr = null;
-            for (let i = 0; i <= retries; i++) {
-                try { return await attempt(); }
-                catch (e) {
-                    lastErr = e;
-                    const retriable = (e.name === 'AbortError') || !navigator.onLine || (e.status >= 500);
-                    if (!retriable || i === retries) throw e;
-                    await new Promise(r => setTimeout(r, 400 * (i + 1)));
-                }
-            }
-            throw lastErr || new Error('unknown error');
-        } finally {
-            clearTimeout(t);
+        // if CORS/preflight فشل، غالبًا سيرجع بلا ACAO ويُرمى كـ TypeError بالمتصفح
+        const text = await res.text().catch(() => '');
+        let json = {};
+        try { json = text ? JSON.parse(text) : {}; } catch (_) {}
+
+        if (!res.ok) {
+          const err = new Error(`HTTP ${res.status}${text ? `: ${text}` : ''}`);
+          err.status = res.status;
+          err.body = text;
+          throw err;
         }
+        return json;
+      };
+
+      try {
+        let lastErr = null;
+        for (let i = 0; i <= retries; i++) {
+          try { return await attempt(); }
+          catch (e) {
+            lastErr = e;
+            const retriable = (e.name === 'AbortError') || !navigator.onLine || (e.status >= 500);
+            if (!retriable || i === retries) throw e;
+            await new Promise(r => setTimeout(r, 400 * (i + 1)));
+          }
+        }
+        throw lastErr || new Error('unknown error');
+      } finally {
+        clearTimeout(t);
+      }
     },
 
     /* طابور محلي خفيف لإعادة المحاولة لاحقًا */
@@ -1622,77 +1622,73 @@ Object.assign(QuizGame.prototype, {
 
     /* ———————————————— لوحة الصدارة ———————————————— */
     async displayLeaderboard() {
-        this.showScreen('leaderboard');
-        const box = this.dom.leaderboardContent;
-        if (box) box.innerHTML = '<div class="spinner"></div>';
+      this.showScreen('leaderboard');
+      const box = this.dom.leaderboardContent;
+      if (box) box.innerHTML = '<div class="spinner"></div>';
 
-        if (!this.lbFirstOpenDone) {
-            if (this.dom.lbMode) this.dom.lbMode.value = 'all';
-            this.lbFirstOpenDone = true;
-        }
+      // أول فتح: اضبط الوضع على "all"
+      if (!this.lbFirstOpenDone) {
+        if (this.dom.lbMode) this.dom.lbMode.value = 'all';
+        this.lbFirstOpenDone = true;
+      }
 
-        const mode = this.dom.lbMode?.value || 'all';
-        if (this.dom.lbAttempt) this.dom.lbAttempt.disabled = (mode !== 'attempt');
+      const mode = this.dom.lbMode?.value || 'all';
+      if (this.dom.lbAttempt) this.dom.lbAttempt.disabled = (mode !== 'attempt');
 
-        const LB_URL = this.config.EDGE_LEADERBOARD_URL ||
-            (this.config.SUPABASE_URL + '/functions/v1/leaderboard');
+      const LB_URL = this.config.EDGE_LEADERBOARD_URL ||
+                     (this.config.SUPABASE_URL + '/functions/v1/leaderboard');
 
-        try {
-            let rows;
+      try {
+        let rows;
 
-            if (mode === 'attempt') {
-                await this.updateAttemptsFilter();
-                const attemptN = Number(this.dom.lbAttempt?.value || 1);
-                rows = await this._postJson(LB_URL, { mode: 'attempt', attempt: attemptN });
-            } else {
-                rows = await this._postJson(LB_URL, { mode });
-                if (mode === 'best') {
-                    const seen = new Map();
-                    const uniq = [];
-                    for (const r of rows || []) {
-                        if (!seen.has(r.device_id)) { 
-                            seen.set(r.device_id, true); 
-                            uniq.push(r); 
-                        }
-                    }
-                    rows = uniq;
-                }
+        if (mode === 'attempt') {
+          await this.updateAttemptsFilter();
+          const attemptN = Number(this.dom.lbAttempt?.value || 1);
+          rows = await this._postJson(LB_URL, { mode: 'attempt', attempt: attemptN });
+        } else {
+          rows = await this._postJson(LB_URL, { mode }); // تُعيد Array جاهزة
+          if (mode === 'best') {
+            const seen = new Set();
+            const uniq = [];
+            for (const r of rows || []) {
+              const k = r.device_id || r.deviceId || '';
+              if (!seen.has(k)) { seen.add(k); uniq.push(r); }
             }
-
-            this.renderLeaderboard((rows || []).slice(0, 50));
-        } catch (e) {
-            console.error('Error loading leaderboard:', e);
-            if (box) box.innerHTML = '<p>حدث خطأ في تحميل لوحة الصدارة.</p>';
+            rows = uniq;
+          }
         }
+
+        this.renderLeaderboard((rows || []).slice(0, 50));
+      } catch (e) {
+        console.error('Error loading leaderboard:', e);
+        if (box) box.innerHTML = '<p>حدث خطأ في تحميل لوحة الصدارة.</p>';
+      }
     },
 
     async updateAttemptsFilter() {
-        const LB_URL = this.config.EDGE_LEADERBOARD_URL ||
-            (this.config.SUPABASE_URL + '/functions/v1/leaderboard');
+      const LB_URL = this.config.EDGE_LEADERBOARD_URL ||
+                     (this.config.SUPABASE_URL + '/functions/v1/leaderboard');
+      try {
+        const { maxAttempt = 1 } = await this._postJson(LB_URL, { mode: 'maxAttempt' });
 
-        try {
-            const { maxAttempt = 1 } = await this._postJson(LB_URL, { mode: 'maxAttempt' });
-
-            if (this.dom.lbAttempt) {
-                const prev = this.dom.lbAttempt.value || '';
-                this.dom.lbAttempt.innerHTML = '';
-
-                for (let i = 1; i <= maxAttempt; i++) {
-                    const opt = document.createElement('option');
-                    opt.value = String(i);
-                    opt.textContent = `المحاولة ${i}`;
-                    this.dom.lbAttempt.appendChild(opt);
-                }
-
-                if (prev && Number(prev) >= 1 && Number(prev) <= maxAttempt) {
-                    this.dom.lbAttempt.value = String(prev);
-                } else {
-                    this.dom.lbAttempt.value = String(maxAttempt);
-                }
-            }
-        } catch (e) {
-            console.error('Error updating attempts filter:', e);
+        if (this.dom.lbAttempt) {
+          const prev = this.dom.lbAttempt.value || '';
+          this.dom.lbAttempt.innerHTML = '';
+          for (let i = 1; i <= maxAttempt; i++) {
+            const opt = document.createElement('option');
+            opt.value = String(i);
+            opt.textContent = `المحاولة ${i}`;
+            this.dom.lbAttempt.appendChild(opt);
+          }
+          if (prev && Number(prev) >= 1 && Number(prev) <= maxAttempt) {
+            this.dom.lbAttempt.value = String(prev);
+          } else {
+            this.dom.lbAttempt.value = String(maxAttempt);
+          }
         }
+      } catch (e) {
+        console.error('Error updating attempts filter:', e);
+      }
     },
 
     renderLeaderboard(players) {
