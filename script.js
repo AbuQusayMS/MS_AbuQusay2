@@ -1,16 +1,10 @@
-/* =========================================================
-   المرحلة ١: الأساسيات والنواة (تهيئة، أدوات عامة، ربط أولي)
-   ========================================================= */
-
-/* رموز الواجهة */
 const ICON_SUN  = '\u2600\uFE0F';
 const ICON_MOON = '\uD83C\uDF19';
 
-/* الفئة الرئيسية للّعبة */
 class QuizGame {
-    /* ————————————————— إعداد عام ————————————————— */
+
     constructor() {
-        // إعدادات التطبيق والتكامل
+
         this.config = {
             SUPABASE_URL: 'https://ckbphyndplaihlfdypyi.supabase.co',
             SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrYnBoeW5kcGxhaWhsZmR5cHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1MjI3MjQsImV4cCI6MjA3NjA5ODcyNH0.waA1ZU5pU3n-d7VHn18MQ8J7qVPT9mz1udKUeEjcydI',
@@ -40,7 +34,6 @@ class QuizGame {
             REQ_TIMEOUT_MS: 10000
         };
 
-        // حالة داخلية
         this.questions = {};
         this.gameState = {};
         this.timer = { interval: null, isFrozen: false, total: 0 };
@@ -57,7 +50,6 @@ class QuizGame {
         this.idempotency = new Set();
         this.lastActionAt = new Map();
 
-        // تحسينات جديدة
         this.performanceMetrics = {
             startTime: 0,
             questionsAnswered: 0,
@@ -66,13 +58,11 @@ class QuizGame {
         this.imageCache = new Map();
         this.retryQueue = [];
 
-        // تشغيل أولي
         this.setupErrorHandling();
         this.setupBackButtonHandler();
         this.init();
     }
 
-    /* ———————————————— أدوات DOM ———————————————— */
     cacheDomElements() {
         const byId = (id) => document.getElementById(id);
         this.dom = {
@@ -123,7 +113,6 @@ class QuizGame {
         return Array.from(parent.querySelectorAll(selector)); 
     }
 
-    /* ———————————————— ربط الأحداث العامة ———————————————— */
     bindEventListeners() {
         document.body.addEventListener('click', (e) => {
             const target = e.target.closest('[data-action]');
@@ -159,16 +148,13 @@ class QuizGame {
             }
         });
 
-        // إدخال الاسم
         this.dom.nameInput.addEventListener('input', () => this.validateNameInput());
         this.dom.nameInput.addEventListener('keypress', (e) => { 
             if (e.key === 'Enter') this.handleNameConfirmation(); 
         });
 
-        // نموذج البلاغ
         this.dom.reportProblemForm.addEventListener('submit', (e) => this.handleReportSubmitGuarded(e));
 
-        // خيارات السؤال
         if (this.dom.optionsGrid) {
             this.dom.optionsGrid.addEventListener('click', (e) => {
                 const btn = e.target.closest('.option-btn');
@@ -178,7 +164,6 @@ class QuizGame {
             });
         }
 
-        // أزرار المساعدات
         const helpersEl = this.getEl('.helpers');
         if (helpersEl) {
             helpersEl.addEventListener('click', (e) => {
@@ -187,7 +172,6 @@ class QuizGame {
             });
         }
 
-        // شبكة الصور الرمزية
         const avatarGrid = this.getEl('.avatar-grid');
         if (avatarGrid) {
             avatarGrid.addEventListener('click', (e) => {
@@ -197,7 +181,6 @@ class QuizGame {
 
         if (this.dom.reportFab) this.dom.reportFab.addEventListener('click', () => this.showModal('advancedReport'));
 
-        // إغلاق النوافذ بالنقر خارج المحتوى
         document.querySelectorAll('.modal').forEach(modal => {
             modal.addEventListener('click', (e) => { 
                 if (e.target.classList.contains('modal')) {
@@ -208,7 +191,6 @@ class QuizGame {
             });
         });
 
-        // عرض معاينة صورة البلاغ
         this.dom.problemScreenshot.addEventListener('change', (e) => {
             const file = e.target.files?.[0];
             const prev = this.dom.reportImagePreview;
@@ -223,7 +205,6 @@ class QuizGame {
             this.cleanupQueue.push({ type: 'url', value: url });
         });
 
-        // زر الهروب
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 const open = document.querySelector('.modal.active');
@@ -235,7 +216,6 @@ class QuizGame {
             }
         });
 
-        // لوحة الصدارة: تبديل الوضع/المحاولة
         this.dom.lbMode?.addEventListener('change', () => {
             const m = this.dom.lbMode.value;
             if (this.dom.lbAttempt) this.dom.lbAttempt.disabled = (m !== 'attempt');
@@ -243,12 +223,10 @@ class QuizGame {
         });
         this.dom.lbAttempt?.addEventListener('change', () => this.displayLeaderboard());
 
-        // تحسين: إعادة الاتصال تلقائيًا
         window.addEventListener('online', () => this.handleOnlineStatus());
         window.addEventListener('offline', () => this.handleOfflineStatus());
     }
 
-    /* ———————————————— تحميل الأصوات ———————————————— */
     async preloadAudio() {
         const audioFiles = {
             correct: '/MS_AbuQusay/audio/correct.mp3',
@@ -295,7 +273,6 @@ class QuizGame {
         } catch(_) {}
     }
 
-    /* ———————————————— حراسة النقرات وإرسال خلفي ———————————————— */
     generateSessionId() { 
         return `S${Date.now()}_${Math.random().toString(36).substring(2, 11)}`; 
     }
@@ -320,7 +297,6 @@ class QuizGame {
         return true;
     }
 
-    /* ———————————————— معالجة الأخطاء وزر الرجوع ———————————————— */
     setupErrorHandling() {
         window.addEventListener('error', (ev) => {
             const error = {
@@ -387,17 +363,14 @@ class QuizGame {
         }
     }
 
-    /* ———————————————— تهيئة أولية ———————————————— */
     async init() {
         this.cacheDomElements();
         this.bindEventListeners();
         this.populateAvatarGrid();
         await this.preloadAudio();
 
-        // إعادة إرسال مؤجّل
         await this.retryFailedSubmissions();
-
-        // تحميل الأسئلة
+       
         const ok = await this.loadQuestions();
         if (ok) {
             this.showScreen('start');
@@ -408,7 +381,6 @@ class QuizGame {
         this.dom.screens.loader?.classList.remove('active');
     }
 
-    /* ———————————————— ظهور/إخفاء الشاشات والنوافذ ———————————————— */
     showScreen(screenName) {
         Object.values(this.dom.screens).forEach(s => s?.classList?.remove('active'));
         const el = this.dom.screens[screenName];
@@ -418,7 +390,7 @@ class QuizGame {
             if (['gameContainer','leaderboardScreen','endScreen'].includes(id)) {
                 history.pushState({ screen: id }, '', `#${id}`);
             }
-            // ابدأ عداد قفل زر البداية عند فتح شاشة البداية
+
             if (screenName === 'start') this.startStartCooldownUI();
         }
     }
@@ -437,7 +409,6 @@ class QuizGame {
         }
     }
 
-    /* ———————————————— تنبيهات قصيرة ———————————————— */
     showToast(message, type = 'info') {
         const c = this.getEl('#toast-container'); 
         if (!c) return;
@@ -455,7 +426,6 @@ class QuizGame {
         }, 3000);
     }
 
-    /* ———————————————— مظهر الواجهة ———————————————— */
     toggleTheme() {
         const newTheme = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
         document.body.dataset.theme = newTheme;
@@ -470,7 +440,6 @@ class QuizGame {
         });
     }
 
-    /* ———————————————— تحسينات جديدة ———————————————— */
     handleOnlineStatus() {
         this.showToast('تم استعادة الاتصال', 'success');
         this.retryFailedSubmissions();
@@ -490,14 +459,9 @@ class QuizGame {
         });
     }
 }
-/* نهاية المرحلة ١ */
-
-/* =========================================================
-   المرحلة ٢: منطق اللعب (التدفق، المؤقّت، الأسئلة، الإحصاءات)
-   ========================================================= */
 
 Object.assign(QuizGame.prototype, {
-    /* ———————————————— بدء اللعب ———————————————— */
+
     postInstructionsStart: async function () {
         await this.cleanupSession();
         this.setupInitialGameState();
@@ -523,7 +487,6 @@ Object.assign(QuizGame.prototype, {
             attemptNumber: null
         };
 
-        // بدء تتبع الأداء
         this.performanceMetrics.startTime = Date.now();
         this.performanceMetrics.questionsAnswered = 0;
         this.performanceMetrics.totalTimeSpent = 0;
@@ -538,7 +501,6 @@ Object.assign(QuizGame.prototype, {
         this.startLevel();
     },
 
-    /* ———————————————— المستويات والأسئلة ———————————————— */
     startLevel: function () {
         const currentLevel = this.config.LEVELS[this.gameState.level];
         this.gameState.helpersUsed = { fiftyFifty: false, freezeTime: false };
@@ -603,7 +565,6 @@ Object.assign(QuizGame.prototype, {
         this.startTimer();
     },
 
-    /* ———————————————— الإجابة والتقدّم ———————————————— */
     checkAnswer: async function (selectedButton = null) {
         if (this.answerSubmitted) return;
         this.answerSubmitted = true;
@@ -629,7 +590,6 @@ Object.assign(QuizGame.prototype, {
             this.showToast('إجابة خاطئة! -100 نقطة', 'error');
         }
 
-        // تحديث مقاييس الأداء
         this.performanceMetrics.questionsAnswered++;
         this.performanceMetrics.totalTimeSpent += (this.config.QUESTION_TIME - this.timer.total);
 
@@ -668,7 +628,6 @@ Object.assign(QuizGame.prototype, {
         }
     },
 
-    /* ———————————————— المؤقّت ———————————————— */
     startTimer: function () {
         clearInterval(this.timer.interval);
         this.timer.total = this.config.QUESTION_TIME;
@@ -689,7 +648,6 @@ Object.assign(QuizGame.prototype, {
             const pct = (timeLeft / this.timer.total) * 100;
             bar.style.width = `${pct}%`;
             
-            // تغيير اللون عند انخفاض الوقت
             if (timeLeft <= 10) {
                 bar.style.backgroundColor = 'var(--error-color)';
             } else if (timeLeft <= 20) {
@@ -712,13 +670,11 @@ Object.assign(QuizGame.prototype, {
         this.checkAnswer(anyWrongBtn || null);
     },
 
-    /* ———————————————— نقاط وإحصاءات ———————————————— */
     updateScore: function (newScore, isReset = false) {
         this.gameState.currentScore = Math.max(0, newScore);
         this.dom.scoreDisplay.textContent = this.formatNumber(this.gameState.currentScore);
         this.updateGameStatsUI();
         
-        // تأثير بسيط عند تغيير النقاط
         if (!isReset) {
             this.dom.scoreDisplay.style.transform = 'scale(1.1)';
             setTimeout(() => {
@@ -785,7 +741,6 @@ Object.assign(QuizGame.prototype, {
         };
     },
 
-    /* ———————————————— إنهاء اللعب وإعادة المحاولة ———————————————— */
     endGame: async function (completedAllLevels = false) {
         this.clearAllTimers();
         this.hideModal('confirmExit');
@@ -899,7 +854,6 @@ Object.assign(QuizGame.prototype, {
         }
     },
 
-    // قفل زر البداية بنفس منطق "لعب مرة أخرى"
     startFromHomeGuarded: async function (btn) {
         const remain = this.getCooldownRemaining();
         if (remain > 0) {
@@ -952,7 +906,6 @@ Object.assign(QuizGame.prototype, {
         }
     },
 
-    /* ———————————————— تنظيف شامل ———————————————— */
     async cleanupSession(opts = {}) {
         const { keepEndScreen = false } = opts;
         this.clearAllTimers();
@@ -1042,7 +995,7 @@ Object.assign(QuizGame.prototype, {
     },
     
     async processCleanupQueue() {
-        // تنظيف URLs المؤقتة
+
         this.cleanupQueue.forEach(item => {
             if (item.type === 'url' && item.value) {
                 try {
@@ -1056,7 +1009,6 @@ Object.assign(QuizGame.prototype, {
         this.cleanupQueue = this.cleanupQueue.filter(i => i.keep === true);
     },
 
-    /* ———————————————— إدخال الاسم ———————————————— */
     handleNameConfirmation: function () { 
         if (!this.dom.confirmNameBtn.disabled) this.showScreen('instructions'); 
     },
@@ -1081,7 +1033,6 @@ Object.assign(QuizGame.prototype, {
         this.startGameFlow(0);
     },
 
-    /* ———————————————— المساعدات ———————————————— */
     useHelper: function (btn) {
         const type = btn.dataset.type;
         const isSkip = type === 'skipQuestion';
@@ -1133,7 +1084,6 @@ Object.assign(QuizGame.prototype, {
         }
     },
 
-    /* ———————————————— تهيئة واجهة اللعب والنتيجة ———————————————— */
     setupGameUI: function () {
         this.getEl('#playerAvatar').src = this.gameState.avatar || '';
         this.getEl('#playerName').textContent = this.gameState.name || '';
@@ -1154,8 +1104,7 @@ Object.assign(QuizGame.prototype, {
         this.getEl('#finalAvgTime').textContent = `${this.formatTime(stats.avg_time)}`;
         this.getEl('#performanceText').textContent = stats.performance_rating;
     },
-
-    /* ———————————————— أدوات حسابية/تنسيقية ———————————————— */
+   
     getPerformanceRating: function (accuracy) {
         if (accuracy >= 90) return 'ممتاز 🏆';
         if (accuracy >= 75) return 'جيد جدًا ⭐';
@@ -1308,18 +1257,9 @@ Object.assign(QuizGame.prototype, {
         return { score, label, details: { accScore, speedScore, levelBonus, cpmBonus, historyBonus, penalty } };
     }
 });
-/* نهاية المرحلة ٢ */
-
-/* =========================================================
-   المرحلة ٣: التكامل والخدمات (Supabase، لوحة الصدارة، البلاغات، الصور)
-   ========================================================= */
 
 Object.assign(QuizGame.prototype, {
-    /* ————————————————————————————————
-       طبقة إرسال جديدة موحّدة (نتائج/سجل/بلاغات)
-       ———————————————————————————————— */
 
-    /* مفاتيح وإعدادات الإرسال */
     _tx: {
         timeoutMs: 10000,
         maxRetries: 2,
@@ -1327,17 +1267,15 @@ Object.assign(QuizGame.prototype, {
         busy: new Set(),
     },
 
-    /* مولّد مفتاح عدم التكرار */
     _mkIdemKey(kind, payload) {
         const raw = `${kind}:${JSON.stringify(payload)}:${this.gameState?.sessionId || this.currentSessionId}`;
         return `idem:${this.simpleHash(raw)}`;
     },
 
-    /* أداة إرسال JSON مع مهلة + إعادة محاولة + Idempotency */
     async _postJson(url, body, { timeoutMs = this._tx.timeoutMs, retries = this._tx.maxRetries } = {}) {
       const headers = {
         'Content-Type': 'application/json',
-        'x-app-key': this.config.APP_KEY, // لازم يطابق APP_KEY في الأسرار
+        'x-app-key': this.config.APP_KEY,
       };
 
       const controller = new AbortController();
@@ -1352,7 +1290,6 @@ Object.assign(QuizGame.prototype, {
           signal: controller.signal
         });
 
-        // if CORS/preflight فشل، غالبًا سيرجع بلا ACAO ويُرمى كـ TypeError بالمتصفح
         const text = await res.text().catch(() => '');
         let json = {};
         try { json = text ? JSON.parse(text) : {}; } catch (_) {}
@@ -1383,7 +1320,6 @@ Object.assign(QuizGame.prototype, {
       }
     },
 
-    /* طابور محلي خفيف لإعادة المحاولة لاحقًا */
     _queuePush(item) {
         try {
             const list = JSON.parse(localStorage.getItem(this._tx.queueKey) || '[]');
@@ -1415,7 +1351,6 @@ Object.assign(QuizGame.prototype, {
         } catch(_) {}
     },
 
-    /* استدعِ تصريف الطابور عند الإقلاع والعودة أونلاين */
     async retryFailedSubmissions() { 
         await this._queueDrain(); 
     },
@@ -1429,7 +1364,6 @@ Object.assign(QuizGame.prototype, {
         };
     })(),
 
-    /* ———————————————— حفظ النتيجة ———————————————— */
     async saveResultsToSupabase(resultsData, opts = {}) {
         const payload = {
             device_id: resultsData?.device_id || this.getOrSetDeviceId(),
@@ -1454,7 +1388,6 @@ Object.assign(QuizGame.prototype, {
         }
     },
 
-    /* ———————————————— سجل العميل ———————————————— */
     async sendClientLog(event = 'log', payload = {}, opts = {}) {
         const body = {
             event,
@@ -1480,7 +1413,6 @@ Object.assign(QuizGame.prototype, {
         }
     },
 
-    /* ———————————————— إرسال البلاغات (مع/بدون صورة) ———————————————— */
     async _sendReport(payload, opts = {}) {
         const idem = this._mkIdemKey('report', { h: this.simpleHash(JSON.stringify(payload || {})) });
         if (this._tx.busy.has(idem)) return { ok: true };
@@ -1498,7 +1430,6 @@ Object.assign(QuizGame.prototype, {
         }
     },
 
-    /* ———————————————— نموذج البلاغ (مُعاد البناء) ———————————————— */
     handleReportSubmitGuarded(event) {
         event.preventDefault();
         const form = event.target;
@@ -1575,14 +1506,12 @@ Object.assign(QuizGame.prototype, {
         })();
     },
 
-    /* ———————————————— تحميل الأسئلة ———————————————— */
     async loadQuestions() {
         try {
             const cacheKey = 'questions_cache';
             const cacheTime = 'questions_cache_time';
-            const CACHE_DURATION = 5 * 60 * 1000; // 5 دقائق
+            const CACHE_DURATION = 5 * 60 * 1000;
 
-            // التحقق من التخزين المؤقت
             const cachedTime = localStorage.getItem(cacheTime);
             const now = Date.now();
             
@@ -1603,7 +1532,7 @@ Object.assign(QuizGame.prototype, {
             
             if (typeof data === 'object' && data !== null) { 
                 this.questions = data;
-                // تخزين في الكاش
+  
                 try {
                     localStorage.setItem(cacheKey, JSON.stringify(data));
                     localStorage.setItem(cacheTime, now.toString());
@@ -1620,13 +1549,11 @@ Object.assign(QuizGame.prototype, {
         }
     },
 
-    /* ———————————————— لوحة الصدارة ———————————————— */
     async displayLeaderboard() {
       this.showScreen('leaderboard');
       const box = this.dom.leaderboardContent;
       if (box) box.innerHTML = '<div class="spinner"></div>';
 
-      // أول فتح: اضبط الوضع على "all"
       if (!this.lbFirstOpenDone) {
         if (this.dom.lbMode) this.dom.lbMode.value = 'all';
         this.lbFirstOpenDone = true;
@@ -1646,7 +1573,7 @@ Object.assign(QuizGame.prototype, {
           const attemptN = Number(this.dom.lbAttempt?.value || 1);
           rows = await this._postJson(LB_URL, { mode: 'attempt', attempt: attemptN });
         } else {
-          rows = await this._postJson(LB_URL, { mode }); // تُعيد Array جاهزة
+          rows = await this._postJson(LB_URL, { mode });
           if (mode === 'best') {
             const seen = new Set();
             const uniq = [];
@@ -1735,7 +1662,6 @@ Object.assign(QuizGame.prototype, {
         this.dom.leaderboardContent.appendChild(list);
     },
 
-    /* ———————————————— تفاصيل اللاعب ———————————————— */
     showPlayerDetails(player) {
         this.getEl('#detailsName').textContent = player.name || 'غير معروف';
         this.getEl('#detailsPlayerId').textContent = player.player_id || 'N/A';
@@ -1796,7 +1722,6 @@ Object.assign(QuizGame.prototype, {
         return `hsl(${hue} 70% 45%)`; 
     },
 
-    /* ———————————————— صور رمزية (رفع/قص) ———————————————— */
     populateAvatarGrid() {
         const grid = this.getEl('.avatar-grid'); 
         if (!grid) return;
@@ -1823,7 +1748,6 @@ Object.assign(QuizGame.prototype, {
             "https://em-content.zobj.net/thumbs/120/apple/354/artist_1f9d1-200d-1f3a8.png"
         ];
         
-        // تحميل مسبق للصور
         this.preloadImages(avatarUrls);
         
         avatarUrls.forEach((url, i) => {
@@ -1846,7 +1770,7 @@ Object.assign(QuizGame.prototype, {
     handleAvatarUpload(event) {
         const file = event.target.files[0];
         if (file && file.type.startsWith('image/')) {
-            // التحقق من حجم الملف (5MB كحد أقصى)
+
             if (file.size > 5 * 1024 * 1024) {
                 this.showToast('حجم الصورة كبير جداً. الرجاء اختيار صورة أصغر من 5MB.', 'error');
                 return;
@@ -1906,7 +1830,6 @@ Object.assign(QuizGame.prototype, {
         if (input) input.value = '';
     },
 
-    /* ———————————————— مشاركة ———————————————— */
     getShareTextForX() {
         const name = this.getEl('#finalName').textContent || '';
         const attempt = this.getEl('#finalAttemptNumber').textContent || '';
@@ -1945,7 +1868,6 @@ Object.assign(QuizGame.prototype, {
             .catch(() => this.showToast('فشل نسخ النتيجة.', 'error'));
     },
 
-    /* ———————————————— تشخيص وسجلات ———————————————— */
     getAutoDiagnostics() {
         try {
             const nav = navigator || {}; 
@@ -2012,7 +1934,6 @@ Object.assign(QuizGame.prototype, {
         return String(Math.abs(h)); 
     },
 
-    /* ———————————————— جهاز ومؤقّت تبريد ———————————————— */
     getOrSetDeviceId() {
         let deviceId;
         try { 
@@ -2057,7 +1978,6 @@ Object.assign(QuizGame.prototype, {
     }
 });
 
-/* ———————————————— إقلاع عند تحميل الصفحة ———————————————— */
 document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('theme') || 'dark';
     document.body.dataset.theme = savedTheme;
@@ -2065,4 +1985,3 @@ document.addEventListener('DOMContentLoaded', () => {
     if (toggleBtn) toggleBtn.textContent = (savedTheme === 'dark') ? ICON_SUN : ICON_MOON;
     new QuizGame();
 });
-/* نهاية المرحلة ٣ */
