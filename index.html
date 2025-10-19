@@ -11,11 +11,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
 
-  <!-- Cropper.js CSS  -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
   <link rel="stylesheet" href="style.css">
 
-  <!-- JSON-LD for SEO -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -33,10 +31,8 @@
 
   <div id="toast-container" class="toast-container" aria-live="assertive"></div>
 
-  <!-- ✅ إصلاح العنصر المكسور -->
   <div id="reportErrorFab" class="report-fab" role="button" aria-label="الإبلاغ عن مشكلة">⚠️</div>
 
-  <!-- SCREENS -->
   <div id="loader" class="screen active" role="status" aria-label="جاري التحميل">
     <div class="spinner" aria-hidden="true"></div>
     <p id="loaderText" class="game-subtitle" style="margin-top: 1rem;">جاري تحميل اللعبة...</p>
@@ -229,11 +225,9 @@
         </div>
       </section>
 
-      <!-- 👇 أضف هذا الجزء هنا -->
       <p id="retryHint" style="display:none; text-align:center; margin-top:1rem;">
         ⏳ يمكنك المحاولة مجددًا بعد <b id="retryCountdown">30</b> ثانية.
       </p>
-      <!-- 👆 نهاية الجزء الجديد -->
       
       <div class="button-group">
          <button id="playAgainBtn" class="btn-main" data-action="playAgain">أعد اللعب</button>
@@ -256,7 +250,7 @@
           <option value="time">أقل وقت</option>
          </select>
         <select id="lbAttempt" disabled aria-label="اختر رقم المحاولة">
-          <!-- سيتم تعبئته ديناميكياً -->
+
         </select>
       </div>
      
@@ -267,7 +261,6 @@
     </div>
   </div>
 
-  <!-- MODALS -->
   <div id="confirmExitModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmExitTitle">
     <div class="modal-content">
       <h3 id="confirmExitTitle">إنهاء المسابقة</h3>
@@ -364,11 +357,9 @@
     </div>
   </div>
 
-  <!-- External Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
 
-  <!-- App JS -->
   <script src="script.js?v=19" defer></script>
 </body>
 </html>
