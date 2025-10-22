@@ -643,7 +643,7 @@ textarea { resize: vertical; min-height: 100px; }
 .help-btn{background:var(--secondary-color);color:var(--text-color);border:1px solid var(--border-color);border-radius:var(--radius-lg);padding:.5rem .9rem;font-weight:700;cursor:pointer}
 .help-btn:disabled{opacity:.5;cursor:not-allowed}
 .help-progress{font-weight:800;color:var(--gold-color)}
-/* Card */
+/* Drawer Card */
 .help-card{background:var(--secondary-color);border:1px solid var(--border-color);border-radius:var(--radius-xl);padding:1rem;box-shadow:var(--shadow-sm)}
 .help-card h4{margin:0 0 .35rem 0;font-size:1.05rem;display:flex;align-items:center;gap:.4rem}
 .help-card .icon{font-size:1.1rem;translate:0 .05rem}
@@ -652,37 +652,13 @@ textarea { resize: vertical; min-height: 100px; }
 .help-card a{font-weight:700;text-decoration:none}
 .help-card a:hover{text-decoration:underline}
 
-.help-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1rem;
-  padding: 1.5rem;
-  max-width: 900px;
-  margin: 2rem auto;
-}
-.help-card {
-  background: var(--surface-color, #222);
-  border-radius: 1rem;
-  padding: 1rem 1.2rem;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-  transition: transform .2s;
-}
-.help-card:hover {
-  transform: translateY(-4px);
-}
-.help-card h4 {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-  margin-bottom: .5rem;
-  font-size: 1.1rem;
-}
-.help-card p, .help-card li {
-  font-size: .95rem;
-  line-height: 1.5;
-}
-.help-card ul {
-  margin: .5rem 0 0 1rem;
-  padding: 0;
-  list-style: disc;
-}
+/* Help Grid */
+.help-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;padding:1.5rem;max-width:900px;margin:2rem auto}
+.help-card{background:var(--secondary-color);border:1px solid var(--border-color);border-radius:1rem;padding:1rem 1.2rem;box-shadow:0 2px 6px rgba(0,0,0,.15);transition:transform .2s}
+.help-card:hover{transform:translateY(-4px)}
+.help-card h4{display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;font-size:1.1rem}
+.help-card p,.help-card li{font-size:.95rem;line-height:1.5}
+.help-card ul{margin:.5rem 0 0 1rem;padding:0;list-style:disc}
+.help-card .icon{font-size:1.1rem;translate:0 .05rem}
+.help-card a{font-weight:700;text-decoration:none}
+.help-card a:hover{text-decoration:underline}
