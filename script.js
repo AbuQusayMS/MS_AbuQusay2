@@ -2018,8 +2018,8 @@ document.addEventListener('DOMContentLoaded', () => {
     <h4><span class="icon">📩</span><span>الدعم</span></h4>
     <p>للاقتراحات أو الإبلاغ عن مشكلة:</p>
     <ul>
-    <li><a href="###" target="_blank" rel="noopener noreferrer">إكس</a></li>
-    <li><a href="###" target="_blank" rel="noopener noreferrer">إنستغرام</a></li>
+    <li><a href="https://x.com/_MS_AbuQusay?t=hs_J87d1xR6dPnIVtNstPg&s=09" target="_blank" rel="noopener noreferrer">إكس</a></li>
+    <li><a href="https://www.instagram.com/_ms_abuqusay?igsh=OTRmODR1cTNkcXV1" target="_blank" rel="noopener noreferrer">إنستغرام</a></li>
     </ul>
     </div>
     `}
