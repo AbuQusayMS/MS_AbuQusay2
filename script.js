@@ -1623,19 +1623,21 @@ Object.assign(QuizGame.prototype, {
             this.dom.leaderboardContent.innerHTML = '<p>لوحة الصدارة فارغة حاليًا!</p>'; 
             return; 
         }
-        
+
         const list = document.createElement('ul');
         list.className = 'leaderboard-list';
         const medals = ['🥇','🥈','🥉'];
         let rank = 1;
 
+        // تحديد أول من أنهى المستوى المستحيل فقط
         const firstImpossibleFinisher = players.find(pl => pl.is_impossible_finisher);
 
         players.forEach(p => {
             const li = document.createElement('li');
             li.className = 'leaderboard-item';
             let rankDisplay;
-            
+
+            // 🎖️ يُمنح فقط لأول من أنهى المستوى المستحيل
             if (p === firstImpossibleFinisher) {
                 li.classList.add('impossible-finisher');
                 rankDisplay = '🎖️';
@@ -1650,27 +1652,19 @@ Object.assign(QuizGame.prototype, {
             }
 
             li.innerHTML = `
-                <span class="rank">${rankDisplay}</span>
-                <span class="name">${p.name}</span>
-                <span class="score">${p.score}</span>
-            `;
-
-            list.appendChild(li);
-        });
-
-        document.querySelector('#leaderboardContainer')?.appendChild(list);
-            
-            li.innerHTML = `
                 <span class="leaderboard-rank">${rankDisplay}</span>
                 <img src="${p.avatar || ''}" alt="صورة ${p.name || ''}" class="leaderboard-avatar" loading="lazy" style="visibility:${p.avatar ? 'visible':'hidden'}">
                 <div class="leaderboard-details">
                     <span class="leaderboard-name">${p.name || 'غير معروف'}</span>
                     <span class="leaderboard-score">${this.formatNumber(p.score)}</span>
-                </div>`;
+                </div>
+            `;
+
             li.addEventListener('click', () => this.showPlayerDetails(p));
             list.appendChild(li);
         });
-        
+
+    // وضع القائمة داخل عنصر لوحة الصدارة
         this.dom.leaderboardContent.innerHTML = '';
         this.dom.leaderboardContent.appendChild(list);
     },
