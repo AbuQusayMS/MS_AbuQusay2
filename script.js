@@ -13,7 +13,7 @@ class QuizGame {
             EDGE_REPORT_URL: 'https://ckbphyndplaihlfdypyi.supabase.co/functions/v1/report',
             EDGE_LEADERBOARD_URL: 'https://ckbphyndplaihlfdypyi.supabase.co/functions/v1/leaderboard',
             APP_KEY: 'MS_AbuQusay',
-            QUESTIONS_URL: 'https://abuqusayms.github.io/MS_AbuQusay/questions.json',
+            QUESTIONS_URL: 'https://abuqusayms.github.io/MS_AbuQusay2/questions.json',
 
             QUESTION_TIME: 80,
             MAX_WRONG_ANSWERS: 3,
