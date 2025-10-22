@@ -1984,4 +1984,72 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleBtn = document.querySelector('.theme-toggle-btn');
     if (toggleBtn) toggleBtn.textContent = (savedTheme === 'dark') ? ICON_SUN : ICON_MOON;
     new QuizGame();
+
+    // Help Drawer Cards
+    (function(){
+    const cards=[
+    {title:'النقاط',icon:'⚖️',html:`
+    <div class="help-card">
+    <h4><span class="icon">⚖️</span><span>النقاط</span></h4>
+    <p>إجابة صحيحة تمنحك <b>+100</b> نقطة. الإجابة الخاطئة تخصم <b>100</b> نقطة.</p>
+    <p>حافظ على رصيدك مرتفعًا قبل انتهاء فرص الأخطاء.</p>
+    </div>
+    `},
+    {title:'المساعدات',icon:'🛠️',html:`
+    <div class="help-card">
+    <h4><span class="icon">🛠️</span><span>المساعدات</span></h4>
+    <ul>
+    <li>التخطي <b>مجاني دائمًا</b>.</li>
+    <li><b>50:50</b> يحذف خيارين خاطئين.</li>
+    <li><b>تجميد الوقت</b> يوقف المؤقت 10 ثوانٍ.</li>
+    <li>تُعاد المساعدات مع بداية أول <b>ثلاثة مستويات</b> جديدة.</li>
+    </ul>
+    </div>
+    `},
+    {title:'المستويات',icon:'🎯',html:`
+    <div class="help-card">
+    <h4><span class="icon">🎯</span><span>المستويات</span></h4>
+    <p>تدرّج الصعوبة: <b>سهل</b> ثم <b>متوسط</b> ثم <b>صعب</b> ثم <b>مستحيل</b>.</p>
+    <p>أكمل كل مستوى للوصول إلى النهائي.</p>
+    </div>
+    `},
+    {title:'الدعم',icon:'📩',html:`
+    <div class="help-card">
+    <h4><span class="icon">📩</span><span>الدعم</span></h4>
+    <p>للاقتراحات أو الإبلاغ عن مشكلة:</p>
+    <ul>
+    <li><a href="###" target="_blank" rel="noopener noreferrer">إكس</a></li>
+    <li><a href="###" target="_blank" rel="noopener noreferrer">إنستغرام</a></li>
+    </ul>
+    </div>
+    `}
+    ];
+    const $=(s,r=document)=>r.querySelector(s);
+    const fab=$('#helpFab');
+    const drawer=$('#helpDrawer');
+    const body=$('#helpBody');
+    const backdrop=$('#helpBackdrop');
+    const progress=$('#helpProgress');
+    const btnPrev=$('[data-help="prev"]',drawer);
+    const btnNext=$('[data-help="next"]',drawer);
+    const btnClose=$('[data-help="close"]',drawer);
+    let i=Math.min(Math.max(parseInt(localStorage.getItem('help.index')||'0',10),0),cards.length-1);
+    function render(){
+    body.innerHTML=cards[i].html;
+    progress.textContent=(i+1)+'/'+cards.length;
+    btnPrev.disabled=(i===0);
+    btnNext.disabled=(i===cards.length-1);
+    localStorage.setItem('help.index',String(i));
+    }
+    function open(){drawer.classList.add('open');drawer.setAttribute('aria-hidden','false');backdrop.hidden=false;fab.setAttribute('aria-expanded','true');setTimeout(()=>drawer.focus(),0)}
+    function close(){drawer.classList.remove('open');drawer.setAttribute('aria-hidden','true');backdrop.hidden=true;fab.setAttribute('aria-expanded','false');fab.focus()}
+    fab?.addEventListener('click',open);
+    fab?.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}})
+    btnClose?.addEventListener('click',close);
+    backdrop?.addEventListener('click',close);
+    document.addEventListener('keydown',(e)=>{if(e.key==='Escape')close()});
+    btnPrev?.addEventListener('click',()=>{if(i>0){i--;render()}});
+    btnNext?.addEventListener('click',()=>{if(i<cards.length-1){i++;render()}});
+    render();
+    })();
 });
