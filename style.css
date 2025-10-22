@@ -1,365 +1,629 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="description" content="مسابقة معلومات تفاعلية لاختبار ثقافتك في مستويات متعددة.">
-  <title>🧠 مسابقة المعلومات | Hybrid Edition</title>
+:root {
 
-  <link rel="icon" type="image/png" href="https://em-content.zobj.net/thumbs/120/apple/354/brain_1f9e0.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+  --color-dark-bg: #1a1a2e;
+  --color-dark-primary: #16213e;
+  --color-dark-secondary: #0f3460;
+  --color-dark-accent: #e94560;
+  --color-dark-text: #f0f0f0;
+  --color-dark-border: #374151;
+  --color-dark-gold: #ffd700;
+  --color-dark-silver: #c0c0c0;
+  --color-dark-bronze: #cd7f32;
+  --color-dark-success: #10b981;
+  --color-dark-error: #ef4444;
 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
-  <link rel="stylesheet" href="style.css">
+  --color-light-bg: #f8fafc;
+  --color-light-primary: #ffffff;
+  --color-light-secondary: #e2e8f0;
+  --color-light-accent: #2563eb;
+  --color-light-text: #1e293b;
+  --color-light-border: #cbd5e1;
+  --color-light-gold: #ca8a04;
+  --color-light-silver: #a1a1aa;
+  --color-light-bronze: #a16207;
+  --color-light-success: #059669;
+  --color-light-error: #dc2626;
+   
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-gray-500: #6b7280;
 
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "VideoGame",
-    "name": "🧠 مسابقة المعلومات",
-    "description": "لعبة مسابقة تفاعلية لاختبار المعلومات في مستويات متعددة",
-    "applicationCategory": "GameApplication",
-    "operatingSystem": "Web Browser",
-    "author": { "@type": "Person", "name": "MS AbuQusay" }
+  --shadow-sm: 0 1px 2px 0 rgba(0,0,0,.05);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -1px rgba(0,0,0,.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -2px rgba(0,0,0,.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,.1), 0 10px 10px -5px rgba(0,0,0,.04);
+
+  --font-family: 'Cairo', sans-serif;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.5rem;
+
+  --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem; --space-4: 1rem;
+  --space-6: 1.5rem; --space-8: 2rem; --space-10: 2.5rem;
+
+  --radius-lg: 0.5rem; --radius-xl: 0.75rem; --radius-2xl: 1rem; --radius-full: 9999px;
+
+  --transition-fast: 150ms ease;
+  --transition-normal: 300ms ease;
+
+  --level-easy: #10b981; --level-medium: #3b82f6; --level-hard: #f59e0b; --level-impossible: #ef4444;
+
+  --bg-color: var(--color-dark-bg);
+  --primary-color: var(--color-dark-primary);
+  --secondary-color: var(--color-dark-secondary);
+  --accent-color: var(--color-dark-accent);
+  --text-color: var(--color-dark-text);
+  --border-color: var(--color-dark-border);
+  --gold-color: var(--color-dark-gold);
+  --silver-color: var(--color-dark-silver);
+  --bronze-color: var(--color-dark-bronze);
+  --success-color: var(--color-dark-success);
+  --error-color: var(--color-dark-error);
+}
+
+body[data-theme='dark'] {
+  --bg-color: var(--color-dark-bg);
+  --primary-color: var(--color-dark-primary);
+  --secondary-color: var(--color-dark-secondary);
+  --accent-color: var(--color-dark-accent);
+  --text-color: var(--color-dark-text);
+  --border-color: var(--color-dark-border);
+  --gold-color: var(--color-dark-gold);
+  --silver-color: var(--color-dark-silver);
+  --bronze-color: var(--color-dark-bronze);
+  --success-color: var(--color-dark-success);
+  --error-color: var(--color-dark-error);
+}
+body[data-theme='light'] {
+  --bg-color: var(--color-light-bg);
+  --primary-color: var(--color-light-primary);
+  --secondary-color: var(--color-light-secondary);
+  --accent-color: var(--color-light-accent);
+  --text-color: var(--color-light-text);
+  --border-color: var(--color-light-border);
+  --gold-color: var(--color-light-gold);
+  --silver-color: var(--color-light-silver);
+  --bronze-color: var(--color-light-bronze);
+  --success-color: var(--color-light-success);
+  --error-color: var(--color-light-error);
+}
+
+body[data-level="easy"] { --level-color: var(--level-easy); --level-bg: rgba(16,185,129,0.1); }
+body[data-level="medium"] { --level-color: var(--level-medium); --level-bg: rgba(59,130,246,0.1); }
+body[data-level="hard"] { --level-color: var(--level-hard); --level-bg: rgba(245,158,11,0.1); }
+body[data-level="impossible"] { --level-color: var(--level-impossible); --level-bg: rgba(239,68,68,0.1); }
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-size: clamp(13px, 4.1vw, 16px);
+}
+
+body {
+  min-height: 100vh;
+  font-family: var(--font-family);
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+  overflow-x: hidden;
+}
+img { display: block; max-width: 100%; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+.screen {
+  position: fixed; inset: 0; display: flex;
+  flex-direction: column; justify-content: center; align-items: center;
+  padding: calc(var(--space-8) + env(safe-area-inset-top))
+           calc(var(--space-4) + env(safe-area-inset-right))
+           calc(var(--space-8) + env(safe-area-inset-bottom))
+           calc(var(--space-4) + env(safe-area-inset-left));
+  opacity: 0; visibility: hidden;
+  transform: scale(0.95);
+  transition: opacity var(--transition-normal), visibility var(--transition-normal), transform var(--transition-normal);
+  overflow-y: auto; z-index: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+.screen.screen--align-top {
+    justify-content: flex-start;
+    padding-top: calc(var(--space-4) + env(safe-area-inset-top));
+}
+.screen.active { opacity: 1; visibility: visible; transform: scale(1); z-index: 10; }
+
+.content-box {
+  background-color: var(--primary-color); border-radius: var(--radius-2xl);
+  padding: var(--space-4);
+  width: 100%; max-width: 30rem; box-shadow: var(--shadow-xl);
+  text-align: center; border: 1px solid var(--border-color); position: relative;
+}
+.screen-header {
+  margin-bottom: var(--space-4);
+}
+.game-title {
+  font-size: var(--font-size-3xl); font-weight: 900; color: var(--gold-color);
+  text-shadow: 2px 2px 4px rgba(0,0,0,.3);
+}
+.game-subtitle { opacity: .8; margin-top: var(--space-2); font-size: .9rem; }
+
+h2 { font-size: var(--font-size-2xl); font-weight: 700; }
+h3 { font-size: var(--font-size-xl); }
+
+.button-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+}
+
+.btn-main, .btn-secondary {
+  padding: var(--space-2) var(--space-4);
+  font-size: 1rem;
+  border-radius: var(--radius-lg); font-weight: 700;
+  cursor: pointer; transition: all var(--transition-fast);
+  border: 2px solid transparent;
+}
+.btn-main { background-color: var(--gold-color); color: var(--color-black); border-color: var(--gold-color); box-shadow: var(--shadow-md); }
+.btn-main:hover:not(:disabled) { background-color: transparent; color: var(--gold-color); transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.btn-secondary { background-color: var(--secondary-color); color: var(--text-color); border-color: var(--border-color); }
+.btn-secondary:hover:not(:disabled) { background-color: var(--accent-color); border-color: var(--accent-color); color: var(--color-white); }
+
+button:disabled { opacity: .6; cursor: not-allowed; transform: none !important; }
+
+button:focus-visible, .btn-main:focus-visible, .btn-secondary:focus-visible,
+.option-btn:focus-visible, .helper-btn:focus-visible, .theme-toggle-btn:focus-visible,
+.end-quiz-btn:focus-visible, .share-btn:focus-visible {
+  outline: 3px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+.form-group { margin-bottom: var(--space-4); text-align: right; }
+.form-group label { display: block; margin-bottom: var(--space-2); font-weight: 600; }
+input[type="text"], input[type="password"], textarea, select {
+  width: 100%; padding: var(--space-3); border: 2px solid var(--border-color);
+  border-radius: var(--radius-lg); background-color: var(--bg-color); color: var(--text-color);
+  font-family: var(--font-family); font-size: var(--font-size-base);
+}
+input[type="text"]:focus, input[type="password"]:focus, textarea:focus, select:focus {
+  outline: none; border-color: var(--accent-color);
+}
+textarea { resize: vertical; min-height: 100px; }
+.error-message { color: var(--error-color); font-size: .875rem; margin-top: var(--space-2); display: none; min-height: 1.2em; }
+.error-message.show { display: block; }
+
+.avatar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(4rem, 1fr));
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+}
+.avatar-option, .avatar-upload-btn {
+  width: 100%; aspect-ratio: 1/1; border-radius: var(--radius-full); object-fit: cover;
+  cursor: pointer; border: 3px solid transparent; transition: all var(--transition-fast);
+  display: flex; justify-content: center; align-items: center; background-color: var(--secondary-color);
+}
+.avatar-upload-btn { font-size: 2rem; color: var(--text-color); }
+.avatar-option:hover, .avatar-upload-btn:hover { transform: scale(1.05); }
+.avatar-option.selected, .avatar-upload-btn.selected { border-color: var(--gold-color); transform: scale(1.1); }
+
+#instructionsScreen .content-box { text-align: initial; }
+#instructionsScreen .screen-header { text-align: center; }
+#instructionsScreen .instructions-content {
+  direction: rtl;
+  text-align: right;
+  display: grid;
+  gap: var(--space-4);
+  margin: var(--space-6) 0;
+}
+
+#instructionsScreen .instruction-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+#instructionsScreen .instruction-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  translate: 0 .2rem;
+  flex-shrink: 0;
+}
+
+#instructionsScreen .instruction-item strong {
+  display: inline-block;
+  margin-bottom: var(--space-1);
+}
+
+#instructionsScreen .instruction-item ul {
+  list-style: disc;
+  margin: var(--space-2) 0 0 0;
+  padding: 0 var(--space-4) 0 0;
+}
+
+#instructionsScreen .instruction-item li {
+  margin: .2rem 0;
+  line-height: 1.7;
+  font-size: 0.98rem;
+}
+
+#instructionsScreen .inline-list {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  line-height: 1.8;
+}
+
+#instructionsScreen .instruction-item a {
+  text-decoration: none;
+  font-weight: 700;
+}
+#instructionsScreen .instruction-item a:hover { text-decoration: underline; }
+
+@media (max-width: 420px) {
+  #instructionsScreen .instruction-item {
+    grid-template-columns: 1.25rem 1fr;
+    gap: var(--space-2);
   }
-  </script>
-</head>
-<body data-theme="dark">
-  <noscript>هذه اللعبة تتطلب تفعيل JavaScript.</noscript>
+  #instructionsScreen .instruction-icon { font-size: 1.2rem; }
+}
 
-  <div id="toast-container" class="toast-container" aria-live="assertive"></div>
+#gameContainer {
+    justify-content: flex-start;
+    width: 100%;
+    max-width: 900px;
+    padding: calc(var(--space-4) + env(safe-area-inset-top))
+             calc(var(--space-4) + env(safe-area-inset-right))
+             calc(var(--space-4) + env(safe-area-inset-bottom))
+             calc(var(--space-4) + env(safe-area-inset-left));
+}
+.top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); width: 100%; }
+.end-quiz-btn {
+  background-color: var(--error-color); color: var(--color-white);
+  border: 1px solid var(--border-color); border-radius: var(--radius-lg);
+  padding: var(--space-2) var(--space-3); cursor: pointer; font-weight: 700;
+}
+.level-progress { display: flex; gap: var(--space-2); }
+.level-indicator {
+  width: 2.5rem; height: 2.5rem; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: bold; border: 2px solid var(--border-color); background-color: var(--secondary-color); color: var(--text-color); position: relative;
+}
+.level-indicator.active { color: var(--color-white); background-color: var(--level-color); border-color: var(--level-color); }
+.level-indicator[data-tooltip]::after {
+  content: attr(data-tooltip); position: absolute; bottom: -2.5rem; left: 50%; transform: translateX(-50%);
+  background-color: var(--primary-color); color: var(--text-color); padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-lg); font-size: .75rem; white-space: nowrap; opacity: 0; visibility: hidden;
+  transition: opacity var(--transition-fast), visibility var(--transition-fast); z-index: 100;
+  border: 1px solid var(--border-color);
+}
+.level-indicator[data-tooltip]:hover::after { opacity: 1; visibility: visible; }
 
-  <div id="reportErrorFab" class="report-fab" role="button" aria-label="الإبلاغ عن مشكلة">⚠️</div>
+.theme-toggle-btn {
+  background-color: var(--secondary-color); border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg); padding: var(--space-2) var(--space-3); color: var(--text-color); cursor: pointer;
+}
 
-  <div id="loader" class="screen active" role="status" aria-label="جاري التحميل">
-    <div class="spinner" aria-hidden="true"></div>
-    <p id="loaderText" class="game-subtitle" style="margin-top: 1rem;">جاري تحميل اللعبة...</p>
-  </div>
+.game-header {
+  display: flex; flex-direction: column; padding: var(--space-4);
+  background-color: var(--primary-color); border-radius: var(--radius-xl);
+  width: 100%; gap: var(--space-4); margin-bottom: var(--space-4); box-shadow: var(--shadow-md);
+}
+.player-info { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
+.player-main { display: flex; align-items: center; gap: var(--space-3); }
+#playerAvatar { width: 3.5rem; height: 3.5rem; border-radius: var(--radius-full); border: 2px solid var(--gold-color); object-fit: cover; }
+.player-details { display: flex; flex-direction: column; align-items: flex-start; }
+#playerName { font-size: var(--font-size-lg); font-weight: 700; overflow-wrap: anywhere; }
+.player-id { font-size: .75rem; opacity: .7; }
+.player-stats { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); font-size: .875rem; }
+.player-stats strong { color: var(--gold-color); }
 
-  <div id="startScreen" class="screen">
-    <div class="content-box">
-      <header class="screen-header">
-        <h1 class="game-title">🧠 مسابقة المعلومات</h1>
-        <p class="game-subtitle">اختبر قدراتك في مسابقة تفاعلية شيقة</p>
-      </header>
-      <div class="button-group">
-        <button id="startBtn" class="btn-main" data-action="showAvatarScreen">ابدأ اللعب</button>
-        <button data-action="showLeaderboard" class="btn-secondary">لوحة الصدارة</button>
-      </div>
-    </div>
-  </div>
+.helpers {
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: var(--space-2);
+}
+.helper-btn {
+  padding: var(--space-2); background-color: var(--secondary-color); color: var(--text-color); border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg); cursor: pointer; transition: all var(--transition-fast); display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-size: 1rem;
+  text-align: center;
+}
+.helper-cost { font-size: .75rem; font-weight: bold; color: var(--gold-color); margin-top: var(--space-1); }
+.helper-btn:not(:disabled):hover { background-color: var(--accent-color); color: var(--color-white); }
 
-  <div id="avatarScreen" class="screen">
-    <div class="content-box">
-      <header class="screen-header"><h2>اختر صورتك الرمزية</h2></header>
-      <div class="avatar-grid" role="group" aria-label="خيارات الصور الرمزية"></div>
-      <div class="button-group">
-        <button id="confirmAvatarBtn" class="btn-main" disabled data-action="showNameEntryScreen">التالي</button>
-      </div>
-    </div>
-  </div>
+.timer-container {
+  width: 100%; background-color: var(--secondary-color); border-radius: var(--radius-full);
+  margin: var(--space-4) 0; position: relative; height: 2rem; min-height: 2rem;
+  flex-shrink: 0; overflow: hidden; border: 2px solid var(--border-color);
+}
+.timer-bar {
+  height: 100%; background: linear-gradient(90deg, var(--accent-color), var(--gold-color));
+  border-radius: var(--radius-full); transition: width 1s linear; width: 100%;
+}
+.timer-bar.frozen { background: #3b82f6; }
+.timer-text {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  color: var(--color-white); font-weight: 700; text-shadow: 1px 1px 2px var(--color-black);
+}
 
-  <div id="nameEntryScreen" class="screen">
-    <div class="content-box">
-      <header class="screen-header"><h2>أدخل اسمك</h2></header>
-      <div class="form-group">
-        <label for="nameInput" class="sr-only">اسم اللاعب</label>
-        <input type="text" id="nameInput" placeholder="مثلا: عبد الله" maxlength="25" autocomplete="name" aria-required="true" aria-describedby="nameError">
-        <div id="nameError" class="error-message" aria-live="polite"></div>
-      </div>
-      <div class="button-group">
-        <button id="confirmNameBtn" class="btn-main" disabled data-action="confirmName">تأكيد الإسم</button>
-      </div>
-    </div>
-  </div>
+.main-content { width: 100%; }
+.question-box {
+  background-color: var(--primary-color); border-radius: var(--radius-xl);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  box-shadow: var(--shadow-md); text-align: center; position: relative;
+}
+.level-badge {
+  position: absolute; top: -0.75rem; left: 50%; transform: translateX(-50%);
+  background-color: var(--level-color); color: #fff; padding: 0.25rem 0.75rem; border-radius: 1rem; font-weight: bold; font-size: .875rem;
+}
+#questionCounter { color: var(--gold-color); font-size: var(--font-size-lg); }
+#questionText {
+  font-size: 1.15rem;
+  font-weight: 600; line-height: 1.5; overflow-wrap: anywhere;
+}
+.options-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+}
+.option-btn {
+  padding: var(--space-3);
+  background-color: var(--primary-color); border: 2px solid var(--border-color);
+  border-radius: var(--radius-xl); color: var(--text-color); font-size: var(--font-size-base);
+  font-weight: 700; cursor: pointer; transition: all var(--transition-fast); text-align: center;
+}
+.option-btn:hover:not(.disabled) { background-color: var(--secondary-color); border-color: var(--accent-color); transform: translateY(-2px); }
+.option-btn.correct { background-color: var(--success-color); color: var(--color-white); border-color: var(--success-color); }
+.option-btn.wrong { background-color: var(--error-color); color: var(--color-white); border-color: var(--error-color); }
+.option-btn.disabled { cursor: not-allowed; opacity: .5; }
+.option-btn.hidden { visibility: hidden; opacity: 0; }
 
-  <div id="instructionsScreen" class="screen screen--align-top">
-    <div class="content-box">
-      <header class="screen-header"><h2>📋 إرشادات اللعب</h2></header>
-      <div class="instructions-content">
+.level-stats, .final-stats { text-align: right; margin-bottom: var(--space-6); }
+.level-stats p, .final-stats p { margin-bottom: var(--space-3); font-size: var(--font-size-lg); }
+.level-stats strong, .final-stats strong { color: var(--gold-color); }
+.performance-rating { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border-color); }
 
-        <div class="instruction-item">
-          <span class="instruction-icon">⚖️</span>
-          <div>
-            <strong>النقاط:</strong>
-            <ul>
-              <li>الصحيحة: +100</li>
-              <li>الخاطئة: -100</li>
-            </ul>
-          </div>
-        </div>
+.share-section { margin-top: var(--space-6); border-top: 1px solid var(--border-color); padding-top: var(--space-6); }
+.share-buttons { display: flex; justify-content: center; gap: var(--space-4); margin-top: var(--space-4); }
+.share-btn { border: none; padding: var(--space-3) var(--space-6); border-radius: var(--radius-lg); color: var(--color-white); font-weight: 700; cursor: pointer; font-size: var(--font-size-base); }
+.share-btn.x { background-color: var(--color-black); }
+.share-btn.instagram { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
 
-        <div class="instruction-item">
-          <span class="instruction-icon">🛠️</span>
-          <div>
-            <strong>المساعدات:</strong>
-            <ul>
-              <li>التخطي مجانية تماما</li>
-              <li>الأخرى تتجدد مع أول ثلاثة مستويات</li>
-            </ul>
-          </div>
-        </div>
+.modal {
+  position: fixed; inset: 0; background-color: rgba(0,0,0,.7);
+  display: flex; justify-content: center; align-items: center; z-index: 6000;
+  opacity: 0; visibility: hidden; transition: opacity var(--transition-normal), visibility var(--transition-normal);
+}
+.modal.active { opacity: 1; visibility: visible; }
+.modal-content {
+  background-color: var(--primary-color); border-radius: var(--radius-2xl);
+  padding: var(--space-4);
+  width: 90%; max-width: 30rem; text-align: center; box-shadow: var(--shadow-xl);
+  max-height: 90vh; overflow-y: auto;
+}
+.modal-buttons {
+    display: flex;
+    gap: var(--space-4);
+    justify-content: center;
+    margin-top: var(--space-4);
+}
 
-        <div class="instruction-item">
-          <span class="instruction-icon">🎯</span>
-          <div class="inline-list">
-            <strong>المستويات:</strong><br>
-            سهل / متوسط / صعب / مستحيل
-          </div>
-        </div>
+#reportImagePreview img { display:block; max-height: 240px; object-fit: contain; }
+.modal { cursor: default; }
+.modal .modal-content { cursor: auto; }
 
-        <div class="instruction-item">
-          <span class="instruction-icon">📩</span>
-          <div>
-            <strong>الدعم:</strong>
-            <ul>
-              <li>تواصل عبر <a href="https://x.com/_MS_AbuQusay" target="_blank" rel="noopener noreferrer">إكس</a></li>
-              <li>أو عبر <a href="https://www.instagram.com/_ms_abuqusay" target="_blank" rel="noopener noreferrer">انستغرام</a></li>
-            </ul>
-          </div>
-        </div>
+.toast-container {
+  position: fixed;
+  top: calc(var(--space-4) + env(safe-area-inset-top));
+  left: calc(50% + env(safe-area-inset-left)/2 - env(safe-area-inset-right)/2);
+  transform: translateX(-50%);
+  z-index: 3000; display: flex; flex-direction: column; align-items: center; gap: var(--space-3);
+  width: calc(90% - env(safe-area-inset-left) - env(safe-area-inset-right));
+  max-width: 30rem;
+}
+.toast {
+  padding: var(--space-4); border-radius: var(--radius-lg); color: var(--color-white);
+  box-shadow: var(--shadow-lg); animation: toastIn .3s ease, toastOut .3s ease 2.7s forwards;
+  width: 100%; text-align: center;
+}
+.toast.success { background-color: var(--success-color); }
+.toast.error { background-color: var(--error-color); }
+.toast.info { background-color: var(--level-medium); }
+@keyframes toastIn { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes toastOut { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-100%); opacity: 0; } }
 
-      </div>
+.spinner {
+  width: 2.5rem; height: 2.5rem; border: 4px solid var(--secondary-color); border-top: 4px solid var(--gold-color);
+  border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }
 
-      <div class="button-group">
-        <button class="btn-main" data-action="postInstructionsStart">حسناً، لنبدأ</button>
-      </div>
-    </div>
-  </div>
+.report-fab {
+  position: fixed;
+  bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+  left: calc(var(--space-4) + env(safe-area-inset-left));
+  width: 3.5rem; height: 3.5rem;
+  background-color: var(--gold-color); color: var(--color-black); border-radius: var(--radius-full);
+  display: flex; justify-content: center; align-items: center; font-size: 1.5rem;
+  box-shadow: var(--shadow-lg); cursor: pointer; z-index: 1002; transition: transform var(--transition-fast);
+}
+.report-fab:hover { transform: scale(1.1); }
 
-  <main id="gameContainer" class="screen">
-    <div class="top-bar">
-      <button class="end-quiz-btn" aria-label="إنهاء المسابقة" data-action="showConfirmExitModal">🚪 إنهاء</button>
-      <div class="level-progress">
-        <div class="level-indicator" data-level="easy" data-tooltip="المستوى السهل">1</div>
-        <div class="level-indicator" data-level="medium" data-tooltip="المستوى المتوسط">2</div>
-        <div class="level-indicator" data-level="hard" data-tooltip="المستوى الصعب">3</div>
-        <div class="level-indicator" data-level="impossible" data-tooltip="المستوى المستحيل">4</div>
-      </div>
-      <button class="theme-toggle-btn" aria-label="تبديل وضع السطوع والظلام" data-action="toggleTheme">☀️</button>
-    </div>
+#image-editor-container { width: 100%; max-width: 400px; height: 300px; margin-bottom: var(--space-4); }
+#image-editor-container img { width: 100%; height: 100%; object-fit: contain; }
 
-    <header class="game-header">
-      <div class="player-info">
-        <div class="player-main">
-          <img id="playerAvatar" src="" alt="الصورة الرمزية للاعب" loading="lazy" decoding="async">
-          <div class="player-details">
-            <span id="playerName" aria-label="اسم اللاعب"></span>
-            <span id="playerId" class="player-id"></span>
-          </div>
-        </div>
-        <div class="player-stats">
-          <div class="stat-item">النقاط: <strong id="currentScore" aria-live="polite">100</strong></div>
-          <div class="stat-item">الأخطاء: <strong id="wrongAnswersCount" aria-live="assertive">0 / 3</strong></div>
-          <div class="stat-item">التخطي: <strong id="skipCount">0</strong></div>
-        </div>
-      </div>
+#leaderboardContent { max-height: 60vh; overflow-y: auto; padding: 0 var(--space-2); margin: var(--space-4) 0; }
+.leaderboard-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-3); }
+.leaderboard-item {
+  display: flex; align-items: center; padding: var(--space-3);
+  background-color: var(--secondary-color); border-radius: var(--radius-xl);
+  border: 2px solid var(--border-color); transition: all var(--transition-fast); cursor: pointer;
+}
+.leaderboard-item:hover { transform: scale(1.02); border-color: var(--accent-color); }
+.leaderboard-item.rank-1 { border-color: var(--gold-color); box-shadow: 0 0 10px var(--gold-color); }
+.leaderboard-item.rank-2 { border-color: var(--silver-color); box-shadow: 0 0 8px var(--silver-color); }
+.leaderboard-item.rank-3 { border-color: var(--bronze-color); box-shadow: 0 0 6px var(--bronze-color); }
+.leaderboard-item.impossible-finisher { order: -1; border-color: var(--level-impossible); background: var(--level-bg); }
+.leaderboard-rank { font-size: var(--font-size-xl); font-weight: 900; flex-basis: 3.5rem; flex-shrink: 0; text-align: center; }
+.leaderboard-avatar { width: 3rem; height: 3rem; border-radius: 50%; margin: 0 var(--space-3); object-fit: cover; border: 2px solid var(--border-color); }
+.leaderboard-details { flex-grow: 1; display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); min-width: 0; }
+.leaderboard-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.leaderboard-score { font-weight: 700; color: var(--gold-color); font-size: var(--font-size-lg); flex-shrink: 0; }
 
-      <div class="helpers" aria-label="خيارات المساعدة">
-        <button class="helper-btn" data-type="fiftyFifty" aria-describedby="fiftyFiftyDesc"><span class="sr-only">مساعدة 50:50</span>50:50<span class="helper-cost">(100)</span></button>
-        <button class="helper-btn" data-type="freezeTime" aria-describedby="freezeTimeDesc"><span class="sr-only">مساعدة تجميد الوقت</span>❄️ 10ث<span class="helper-cost">(100)</span></button>
-        <button class="helper-btn" data-type="skipQuestion" aria-describedby="skipQuestionDesc"><span class="sr-only">تخطي السؤال</span>⏭️ تخطي<span id="skipCost" class="helper-cost">(مجانية)</span></button>
+.lb-filters{
+  display:flex; gap:.5rem; justify-content:center; margin: .5rem 0 0.75rem;
+}
+.lb-filters select{
+  padding:.4rem .6rem; border-radius:10px; border:1px solid var(--border-color);
+  background:var(--secondary-color); color:var(--text-color);
+}
 
-        <span id="fiftyFiftyDesc" class="sr-only">يزيل خيارين خاطئين. الاستخدام مرة واحدة لكل جولة. التكلفة 100 نقطة.</span>
-        <span id="freezeTimeDesc" class="sr-only">يوقف المؤقت 10 ثوانٍ. الاستخدام مرة واحدة لكل جولة. التكلفة 100 نقطة.</span>
-        <span id="skipQuestionDesc" class="sr-only">تخطي السؤال الحالي. مجانية تماماً.</span>
-      </div>
-    </header>
+@media (min-width: 540px){
+  .player-details-body{ grid-template-columns: repeat(3, minmax(0,1fr)); }
+}
 
-    <div class="timer-container" aria-label="مؤقت السؤال">
-      <div class="timer-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"></div>
-      <span id="timer" class="timer-text">30</span>
-    </div>
+@media (min-width: 768px) {
+  .screen { padding: var(--space-8); }
+  .button-group.start-menu { flex-direction: row; justify-content: center; }
+  .game-header { flex-direction: row; justify-content: space-between; align-items: center; }
+  .player-info { flex-grow: 1; }
+  .player-stats { flex-direction: row; gap: var(--space-6); }
+  .options-grid { grid-template-columns: repeat(2, 1fr); }
+}
 
-    <div class="main-content">
-      <section class="question-box" aria-labelledby="questionCounter">
-        <div class="level-badge" id="currentLevelBadge">سهل</div>
-        <h3 id="questionCounter">السؤال 1 من 5</h3>
-        <p id="questionText" aria-live="polite"></p>
-      </section>
-      <section class="options-container" aria-labelledby="questionText">
-        <div class="options-grid" role="group" aria-label="خيارات الإجابة"></div>
-      </section>
-    </div>
-  </main>
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
 
-  <div id="levelCompleteScreen" class="screen">
-    <div class="content-box">
-      <header class="screen-header"><h2 id="levelCompleteTitle">🎉 أكملت المستوى!</h2></header>
-      <div class="level-stats">
-        <p>النقاط الحالية: <strong id="levelScore"></strong></p>
-        <p>عدد الأخطاء: <strong id="levelErrors"></strong></p>
-        <p>الأسئلة الصحيحة: <strong id="levelCorrect"></strong></p>
-      </div>
-      <div class="button-group">
-        <button class="btn-main" data-action="nextLevel">المستوى التالي</button>
-        <button class="btn-secondary" data-action="endGame">الانسحاب وعرض النتائج</button>
-      </div>
-    </div>
-  </div>
+#playerDetailsModal .modal-content {
+  direction: rtl;
+  text-align: center;
+  max-width: 34rem;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: .75rem;
+}
+.stat-card {
+  background: var(--secondary-color);
+  border: 1px solid var(--border-color);
+  border-radius: .75rem;
+  box-shadow: var(--shadow-sm);
+  padding: .7rem .85rem;
+  min-height: 58px;
+}
+.stat-card .label {
+  font-size: .86rem;
+  opacity: .85;
+  line-height: 1;
+}
+.stat-card .value {
+  font-size: 1.18rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+.stat-card .value.score {
+  color: var(--gold-color);
+}
 
-  <div id="endScreen" class="screen screen--align-top">
-    <div class="content-box">
-      <header class="screen-header"><h2>🏆 النتائج النهائية 🏆</h2></header>
-      <div class="final-stats">
-        <p>✍️ الاسم: <strong id="finalName"></strong></p>
-        <p>🆔 المعرّف: <strong id="finalId"></strong></p>
-        <p>🔢 رقم المحاولة: <strong id="finalAttemptNumber"></strong></p>
-        <p>✅ الإجابات الصحيحة: <strong id="finalCorrect"></strong></p>
-        <p>❌ الإجابات الخاطئة: <strong id="finalWrong"></strong></p>
-        <p>⏭️ مرات التخطي: <strong id="finalSkips"></strong></p>
-        <p>⭐ النقاط النهائية: <strong id="finalScore"></strong></p>
-        <p>⏱️ الوقت المستغرق: <strong id="totalTime"></strong></p>
-        <p>📈 المستوى الذي وصلت إليه: <strong id="finalLevel"></strong></p>
-        <p>🎯 نسبة الدقة: <strong id="finalAccuracy"></strong></p>
-        <p>⏳ متوسط وقت الإجابة: <strong id="finalAvgTime"></strong></p>
-        <div class="performance-rating"><span>أداؤك: </span><strong id="performanceText"></strong></div>
-      </div>
-      <section class="share-section">
-        <h3>📢 مشاركة النتائج</h3>
-        <div class="share-buttons">
-          <button class="share-btn x" data-action="shareOnX">X</button>
-          <button class="share-btn instagram" data-action="shareOnInstagram">Instagram</button>
-        </div>
-      </section>
+.stat-card.accuracy {
+  text-align: right;
+  padding: .95rem .6rem 1.15rem;
+}
 
-      <p id="retryHint" style="display:none; text-align:center; margin-top:1rem;">
-        ⏳ يمكنك المحاولة مجددًا بعد <b id="retryCountdown">30</b> ثانية.
-      </p>
-      
-      <div class="button-group">
-         <button id="playAgainBtn" class="btn-main" data-action="playAgain">أعد اللعب</button>
-         <button class="btn-secondary" data-action="showLeaderboard">لوحة الصدارة</button>
-        <button class="btn-secondary" data-action="showStartScreen">العودة للرئيسية</button>
-      </div>
-    </div>
-  </div>
+.circle-progress {
+  --size: 120px;
+  --track: var(--border-color);
+  --bar: var(--success-color);
+  --val: 0;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  margin-inline: auto;
+  background: radial-gradient( closest-side, var(--primary-color) calc(50% - 8px), transparent 0), conic-gradient(var(--bar) calc(var(--val) * 1%), var(--track) 0);
+}
+.circle-progress > span {
+  font-weight: 900;
+  font-size: 1.05rem;
+}
+@media (max-width: 420px) {
+  .circle-progress {
+    --size: 132px;
+  }
+}
 
-  <div id="leaderboardScreen" class="screen screen--align-top">
-    <div class="content-box">
-      <header class="screen-header"><h2>🏆 لوحة الصدارة 🏆</h2></header>
-     
-      <div class="lb-filters">
-        <select id="lbMode" aria-label="نمط ترتيب اللوحة">
-          <option value="all">الكل</option>
-          <option value="best" selected>أفضل نتيجة</option>
-          <option value="attempt">رقم المحاولة</option>
-          <option value="accuracy">أعلى دقة</option>
-          <option value="time">أقل وقت</option>
-         </select>
-        <select id="lbAttempt" disabled aria-label="اختر رقم المحاولة">
+#playerDetailsModal .player-details-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .45rem;
+  margin-bottom: .85rem;
+}
 
-        </select>
-      </div>
-     
-      <div id="leaderboardContent" aria-live="polite"></div>
-      <div class="button-group">
-        <button class="btn-secondary" data-action="showStartScreen">العودة</button>
-      </div>
-    </div>
-  </div>
+#playerDetailsModal #detailsAvatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--gold-color);
+  box-shadow: var(--shadow-md);
+}
 
-  <div id="confirmExitModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmExitTitle">
-    <div class="modal-content">
-      <h3 id="confirmExitTitle">إنهاء المسابقة</h3>
-      <p>سيتم حفظ نقاطك الحالية. هل ترغب في المتابعة؟</p>
-      <div class="modal-buttons">
-        <button class="btn-main" data-action="endGame">نعم</button>
-        <button class="btn-secondary" data-action="closeModal" data-modal-id="confirmExitModal">لا</button>
-      </div>
-    </div>
-  </div>
+#playerDetailsModal #detailsName {
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
 
-  <div id="advancedReportModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="advancedReportTitle">
-    <div class="modal-content">
-      <h3 id="advancedReportTitle">الإبلاغ عن مشكلة</h3>
-      <form id="reportProblemForm">
-        <div class="form-group">
-          <label for="problemType">نوع المشكلة:</label>
-          <select id="problemType" name="problemType" required>
-            <option value="">اختر نوع المشكلة...</option>
-            <option value="technical">مشكلة تقنية (تجمد، بطء)</option>
-            <option value="question_error">خطأ في السؤال أو الإجابة</option>
-            <option value="account_issue">مشكلة في الحساب أو النقاط</option>
-            <option value="ui_ux">واجهة/تجربة المستخدم</option>
-            <option value="performance">الأداء/السرعة</option>
-            <option value="suggestion">اقتراح لتحسين اللعبة</option>
-            <option value="other">أخرى</option>
-          </select>
-        </div>
+#playerDetailsModal #detailsPlayerId {
+  font-size: .85rem;
+  opacity: .85;
+  letter-spacing: .5px;
+  direction: ltr;
+  unicode-bidi: plaintext;
+}
 
-        <div class="form-group">
-          <label for="problemLocation">أين ظهرت المشكلة؟ (اختياري)</label>
-          <select id="problemLocation" name="problemLocation">
-            <option value="unspecified">لم أحدد...</option>
-            <option value="start">شاشة البداية</option>
-            <option value="avatar">اختيار الصورة الرمزية</option>
-            <option value="name">إدخال الاسم</option>
-            <option value="instructions">التعليمات</option>
-            <option value="game">أثناء الأسئلة</option>
-            <option value="leaderboard">لوحة الصدارة</option>
-            <option value="end">شاشة النتيجة</option>
-          </select>
-        </div>
+#playerDetailsModal .stats-grid {
+  text-align: right;
+  border-top: 1px solid var(--border-color);
+  padding-top: .75rem;
+}
 
-        <div class="form-group">
-          <label for="problemDescription">وصف المشكلة:</label>
-          <textarea id="problemDescription" name="problemDescription" placeholder="يرجى تقديم تفاصيل دقيقة..." required></textarea>
-        </div>
+#playerDetailsModal .stat-card.accuracy .circle-progress {
+  --size: 104px;
+}
+#playerDetailsModal .stat-card.accuracy .circle-progress > span {
+  font-size: .95rem;
+}
 
-        <div class="form-group">
-          <label for="problemScreenshot">إرفاق صورة/لقطة شاشة (اختياري):</label>
-          <input type="file" id="problemScreenshot" accept="image/*">
-          <div id="reportImagePreview" style="margin-top:.5rem;display:none;">
-            <img alt="معاينة الصورة" style="max-width:100%;border-radius:.5rem;border:1px solid var(--border-color)"/>
-          </div>
-        </div>
+@media (max-width: 420px) {
+  #playerDetailsModal .stat-card.accuracy .circle-progress {
+    --size: 94px;
+  }
+}
 
-        <div class="form-group">
-          <label><input type="checkbox" id="includeAutoDiagnostics" checked> إرفاق معلومات التشخيص التلقائي</label>
-        </div>
-
-        <div class="modal-buttons">
-          <button type="submit" class="btn-main">إرسال البلاغ</button>
-          <button type="button" class="btn-secondary" data-action="closeModal" data-modal-id="advancedReportModal">إلغاء</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="avatarEditorModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="avatarEditorTitle">
-    <div class="modal-content">
-      <h3 id="avatarEditorTitle">تعديل الصورة الرمزية</h3>
-      <div id="image-editor-container">
-        <img id="image-to-crop" src="" alt="صورة للتقليم/القص">
-      </div>
-      <div class="modal-buttons">
-        <button class="btn-main" data-action="saveCroppedAvatar">حفظ الصورة</button>
-        <button class="btn-secondary" data-action="closeModal" data-modal-id="avatarEditorModal">إلغاء</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="playerDetailsModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="playerDetailsTitle">
-    <div class="modal-content">
-      <header class="player-details-header">
-        <img id="detailsAvatar" src="" alt="صورة اللاعب الرمزية" class="player-details-avatar">
-        <h3 id="playerDetailsTitle">تفاصيل اللاعب</h3>
-        <span id="detailsName"></span>
-        <span id="detailsPlayerId" class="player-id"></span>
-      </header>
-      <div id="playerDetailsContent" class="player-details-body"></div>
-      <div class="modal-buttons">
-        <button class="btn-secondary" data-action="closeModal" data-modal-id="playerDetailsModal">إغلاق</button>
-      </div>
-    </div>
-  </div>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
-
-  <script src="script.js?v=19" defer></script>
-</body>
-</html>
+@media (max-height: 740px) {
+  #playerDetailsModal .stat-card.accuracy .circle-progress {
+    --size: 50px;
+  }
+}
+@media (max-height: 660px) {
+  #playerDetailsModal .stat-card.accuracy .circle-progress {
+    --size: 86px;
+  }
+}
