@@ -2094,3 +2094,4 @@ document.addEventListener('DOMContentLoaded', () => {
     btnNext?.addEventListener('click',()=>{if(i<cards.length-1){i++;render()}});
     render();
     })();
+});
