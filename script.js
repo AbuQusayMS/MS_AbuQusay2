@@ -1624,28 +1624,41 @@ Object.assign(QuizGame.prototype, {
             return; 
         }
         
-        const list = document.createElement('ul'); 
+        const list = document.createElement('ul');
         list.className = 'leaderboard-list';
-        const medals = ['🥇','🥈','🥉']; 
+        const medals = ['🥇','🥈','🥉'];
         let rank = 1;
-        
+
+        const firstImpossibleFinisher = players.find(pl => pl.is_impossible_finisher);
+
         players.forEach(p => {
-            const li = document.createElement('li'); 
+            const li = document.createElement('li');
             li.className = 'leaderboard-item';
             let rankDisplay;
             
-            if (p.is_impossible_finisher) { 
-                li.classList.add('impossible-finisher'); 
-                rankDisplay = '🎖️'; 
-            } else { 
-                if (rank <= 3) { 
-                    li.classList.add(`rank-${rank}`); 
-                    rankDisplay = medals[rank-1]; 
+            if (p === firstImpossibleFinisher) {
+                li.classList.add('impossible-finisher');
+                rankDisplay = '🎖️';
+            } else {
+                if (rank <= 3) {
+                    li.classList.add(`rank-${rank}`);
+                    rankDisplay = medals[rank - 1];
                 } else {
-                    rankDisplay = rank; 
+                    rankDisplay = rank;
                 }
-                rank++; 
+                rank++;
             }
+
+            li.innerHTML = `
+                <span class="rank">${rankDisplay}</span>
+                <span class="name">${p.name}</span>
+                <span class="score">${p.score}</span>
+            `;
+
+            list.appendChild(li);
+        });
+
+        document.querySelector('#leaderboardContainer')?.appendChild(list);
             
             li.innerHTML = `
                 <span class="leaderboard-rank">${rankDisplay}</span>
@@ -1985,7 +1998,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (toggleBtn) toggleBtn.textContent = (savedTheme === 'dark') ? ICON_SUN : ICON_MOON;
     new QuizGame();
 
-    // Help Drawer Cards
     (function(){
     const cards=[
     {title:'النقاط',icon:'⚖️',html:`
