@@ -357,6 +357,27 @@
     </div>
   </div>
 
+  <div id="helpFab" class="help-fab" role="button" aria-label="إرشادات اللعب" tabindex="0">❓</div>
+
+  <aside id="helpDrawer" class="help-drawer" aria-hidden="true" aria-labelledby="helpDrawerTitle">
+      <header class="help-drawer__header">
+          <h3 id="helpDrawerTitle">إرشادات سريعة</h3>
+          <button type="button" class="help-drawer__close" aria-label="إغلاق">✖</button>
+       </header>
+
+       <div class="help-drawer__body">
+           <p id="helpTipText"></p>
+          <div class="help-drawer__progress" aria-live="polite">
+               <span id="helpTipIndex"></span> / <span id="helpTipTotal"></span>
+          </div>
+       </div>
+
+      <footer class="help-drawer__footer">
+          <button type="button" class="btn-secondary" id="helpPrevBtn">السابق</button>
+           <button type="button" class="btn-main" id="helpNextBtn">التالي</button>
+      </footer>
+  </aside>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
 
