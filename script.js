@@ -1994,6 +1994,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <p>كل إجابة صحيحة تمنحك <b>+100</b> نقطة.</p>
     <p>الإجابة الخاطئة تخصم <b>100</b> نقطة من رصيدك.</p>
     <p>حافظ على نقاطك مرتفعة قبل انتهاء فرص الأخطاء.</p>
+    </div>
     `},
     {title:'المساعدات',icon:'🛠️',html:`
     <div class="help-card">
@@ -2052,7 +2053,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <p>يمكنك عرض النتائج حسب <b>الأفضل</b> أو <b>الأعلى دقة</b> أو <b>الأسرع</b>.</p>
     <p>كما يمكنك تصفيتها حسب عدد المحاولات.</p>
     </div>
-    `},   
+    `},
     {title:'الدعم',icon:'📩',html:`
     <div class="help-card">
     <h4><span class="icon">📩</span><span>الدعم</span></h4>
@@ -2073,6 +2074,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnPrev=$('[data-help="prev"]',drawer);
     const btnNext=$('[data-help="next"]',drawer);
     const btnClose=$('[data-help="close"]',drawer);
+    if(!fab||!drawer||!body||!progress){return;}
     let i=Math.min(Math.max(parseInt(localStorage.getItem('help.index')||'0',10),0),cards.length-1);
     function render(){
     body.innerHTML=cards[i].html;
@@ -2083,8 +2085,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function open(){drawer.classList.add('open');drawer.setAttribute('aria-hidden','false');backdrop.hidden=false;fab.setAttribute('aria-expanded','true');setTimeout(()=>drawer.focus(),0)}
     function close(){drawer.classList.remove('open');drawer.setAttribute('aria-hidden','true');backdrop.hidden=true;fab.setAttribute('aria-expanded','false');fab.focus()}
-    fab?.addEventListener('click',open);
-    fab?.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}})
+    fab.addEventListener?.('click',open);
+    fab.addEventListener?.('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}});
     btnClose?.addEventListener('click',close);
     backdrop?.addEventListener('click',close);
     document.addEventListener('keydown',(e)=>{if(e.key==='Escape')close()});
@@ -2092,4 +2094,3 @@ document.addEventListener('DOMContentLoaded', () => {
     btnNext?.addEventListener('click',()=>{if(i<cards.length-1){i++;render()}});
     render();
     })();
-});
